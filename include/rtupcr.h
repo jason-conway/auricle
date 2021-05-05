@@ -5,7 +5,7 @@
  * @version 0.1
  * @date 2021-05-04
  * 
- * @copyright Copyright (c) 2021
+ * @copyright Copyright (c) 2021 Jason Conway. All rights reserved.
  * 
  */
 
@@ -21,15 +21,22 @@ class RTUPCR : public AudioStream
 public:
     RTUPCR(void) : AudioStream(2, inputQueueArray)
 	{
+        //
 	}
 
     boolean begin(float32_t *impulseResponse);
     virtual void update(void);
 
+    enum Channels
+    {
+        STEREO_LEFT,
+        STEREO_RIGHT
+    };
+
 private:
     audio_block_t *inputQueueArray[2];
 
-    enum CmplxFFT
+    enum 
     {
         forwardTransform,
         inverseTransform
