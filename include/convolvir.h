@@ -15,6 +15,6 @@
 #include <WProgram.h>
 #include <pins_arduino.h>
 
-
+#define IR_SAMPLES 17920
 
 #endif

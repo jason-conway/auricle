@@ -16,31 +16,45 @@
 #include <arm_math.h>
 #include <arm_const_structs.h>
 
+#define	partitionSize 128
+#define	partitionCount 140
+#define	audioBlockSize 128
+
 class RTUPCR : public AudioStream
 {
 public:
-    RTUPCR(void) : AudioStream(2, inputQueueArray)
+	RTUPCR(void) : AudioStream(2, inputQueueArray)
 	{
-        //
+		//
 	}
 
-    boolean begin(float32_t *impulseResponse);
-    virtual void update(void);
+	bool begin(float32_t *impulseResponse);
+	virtual void update(void);
 
-    enum Channels
-    {
-        STEREO_LEFT,
-        STEREO_RIGHT
-    };
+	enum Channels
+	{
+		STEREO_LEFT,
+		STEREO_RIGHT
+	};
 
 private:
-    audio_block_t *inputQueueArray[2];
+	audio_block_t *inputQueueArray[2];
+	int16_t partitionIndex = 0;
+	int16_t reversedPartitionIndex = 0;
 
-    enum 
-    {
-        forwardTransform,
-        inverseTransform
-    };
+	bool audioReady = false;
+	
+	enum FFT_Direction
+	{
+		forwardTransform,
+		inverseTransform
+	};
+
+	float32_t impulseResponseFFT[partitionCount][512];
+	float32_t audioInFFT[512];
+
+	float32_t *convolutionPartition;
+	float32_t *impulsePartition;
 
 };
 #endif

@@ -12,8 +12,6 @@
 #include "convolvir.h"
 #include "rtupcr.h"
 
-#define IR_SAMPLES 17920
-
 RTUPCR convolve;
 usb_serial_class usb;
 
