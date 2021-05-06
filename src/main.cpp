@@ -13,7 +13,6 @@
 #include "rtupcr.h"
 
 RTUPCR convolve;
-usb_serial_class usb;
 
 AudioInputI2S stereoIn;
 AudioOutputI2S stereoOut;
@@ -25,18 +24,23 @@ AudioConnection rightOutConv(convolve, convolve.STEREO_RIGHT, stereoOut, convolv
 
 int main(void)
 {
-	float32_t impulseArray[IR_SAMPLES];
+	float32_t impulseArray[IR_SAMPLES]; // Internal options?? Rotary position switch?
+	static DMAMEM audio_block_t audioMemory[50];
+	AudioStream::initialize_memory(audioMemory, 50);
+
 	convolve.begin(impulseArray);
-	usb.begin(115200);
+	Serial.begin(115200);
 
-	while (!usb);
+	while (!Serial);
 
-	usb.printf("Does it work?\n");
+	Serial.printf("Does it work?\n");
 
-	// while(1)
-	// {
-	//     yield();
-	// }
+	while (1)
+	{
+		Serial.printf("Yes...\n");
+	    yield();
+		delay(1000);
+	}
 
 	return EXIT_SUCCESS;
 }

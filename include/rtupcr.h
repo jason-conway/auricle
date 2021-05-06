@@ -16,19 +16,28 @@
 #include <arm_math.h>
 #include <arm_const_structs.h>
 
-#define	partitionSize 128
-#define	partitionCount 140
-#define	audioBlockSize 128
+#define partitionSize 128
+#define partitionCount 140
+#define audioBlockSize 128
+
+// IFFT Flags
+#define forwardTransform 0
+#define inverseTransform 1
+
+// Return Values
+#define PARTITION_SUCCESS 0
+#define PARTITION_FAILURE 1
+#define INIT_SUCCESS 0
 
 class RTUPCR : public AudioStream
 {
 public:
 	RTUPCR(void) : AudioStream(2, inputQueueArray)
 	{
-		//
+		// Constructor
 	}
 
-	bool begin(float32_t *impulseResponse);
+	int8_t begin(float32_t *impulseResponse);
 	virtual void update(void);
 
 	enum Channels
@@ -43,18 +52,23 @@ private:
 	int16_t reversedPartitionIndex = 0;
 
 	bool audioReady = false;
-	
-	enum FFT_Direction
-	{
-		forwardTransform,
-		inverseTransform
-	};
 
-	float32_t impulseResponseFFT[partitionCount][512];
-	float32_t audioInFFT[512];
+	bool partitionImpulseResponse(float32_t *impulseResponse);
 
-	float32_t *convolutionPartition;
+	float32_t impulseResponseFFT[partitionCount][512]; // Partitioned impulse response sub-filters
+	float32_t audioConvolutionBuffer[512];			   // Convolution buffer
+
+	// These keep track of which partition we're on
+	float32_t *convolutionPartition; 
 	float32_t *impulsePartition;
 
+	float32_t leftAudioData[audioBlockSize];	   // Left channel audio data as floating point vector
+	float32_t leftAudioPrevSample[audioBlockSize]; // Left channel N-1
+
+	float32_t rightAudioData[audioBlockSize];		// Right channel audio data as floating point vector
+	float32_t rightAudioPrevSample[audioBlockSize]; // Right channel N-1
+
+	float32_t multAccum[512];	 // Multiply-and-accumulate (MAC) buffer
+	float32_t cmplxProduct[512]; // Complex-by-complex multiplication buffer
 };
 #endif
