@@ -17,7 +17,7 @@
 #include <arm_const_structs.h>
 
 #define partitionSize 128
-#define partitionCount 140
+#define partitionCount 172
 #define audioBlockSize 128
 
 // IFFT Flags
@@ -55,8 +55,11 @@ private:
 
 	bool partitionImpulseResponse(float32_t *impulseResponse);
 
-	float32_t impulseResponseFFT[partitionCount][512]; // Partitioned impulse response sub-filters
+//	float32_t impulseResponseFFT[partitionCount][512]; // Partitioned impulse response sub-filters
+
 	float32_t audioConvolutionBuffer[512];			   // Convolution buffer
+	float32_t impulseResponseFFT[partitionCount][512]; // Partitioned impulse response sub-filters
+	float32_t impulsePartitionBuffer[512];
 
 	// These keep track of which partition we're on
 	float32_t *convolutionPartition; 

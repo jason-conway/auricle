@@ -11,9 +11,8 @@
 
 #include "rtupcr.h"
 
-// DMA Buffers
-float32_t __attribute__((section(".dmabuffers"), used)) convolutionPartitions[partitionCount][512];
-float32_t __attribute__((section(".dmabuffers"), used)) impulsePartitionBuffer[512];
+// DMA buffer
+float32_t __attribute__ ((section(".dmabuffers"), used)) convolutionPartitions[partitionCount][512];
 
 /**
  * @brief Initialize RTUPCR
@@ -111,7 +110,7 @@ void RTUPCR::update(void)
 		}
 
 		arm_cfft_f32(&arm_cfft_sR_f32_len256, audioConvolutionBuffer, forwardTransform, 1); // FFT of input audio buffer
-		
+
 		convolutionPartition = &convolutionPartitions[0][0] + (512 * partitionIndex); // Address of the current partition
 
 		arm_copy_f32(audioConvolutionBuffer, convolutionPartition, 512); // Copy result from FFT into current partition
@@ -144,8 +143,8 @@ void RTUPCR::update(void)
 		// Move the resultant convolution product into left and right audio buffers
 		for (size_t i = 0; i < partitionSize; i++)
 		{
-			leftAudioData[i] = multAccum[2 * i]; // This is where a digital gain would likely be best
-			rightAudioData[i] = multAccum[2 * i + 1];
+			leftAudioData[i] = multAccum[2 * i] * 0.05; 
+			rightAudioData[i] = multAccum[2 * i + 1] * 0.05;
 		}
 
 		// Convert back to integer for transmit and release
