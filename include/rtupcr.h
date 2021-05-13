@@ -62,8 +62,8 @@ private:
 	float32_t impulsePartitionBuffer[512] = { 0 };
 
 	// These keep track of which partition we're on
-	float32_t *convolutionPartition; 
-	float32_t *impulsePartition;
+	float32_t *convolutionPartition; // TODO: Initialize 
+	float32_t *impulsePartition = &impulseResponseFFT[0][0];
 
 	float32_t leftAudioData[audioBlockSize] = { 0 };	   // Left channel audio data as floating point vector
 	float32_t leftAudioPrevSample[audioBlockSize] = { 0 }; // Left channel N-1

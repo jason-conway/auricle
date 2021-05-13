@@ -11,8 +11,10 @@
 
 #include "rtupcr.h"
 
+
 // DMA buffer
-float32_t __attribute__ ((section(".dmabuffers"), used)) convolutionPartitions[partitionCount][512];
+float32_t __attribute__ ((section(".dmabuffers"), used)) convolutionPartitions[partitionCount][512]; // TODO: Initialize pointer here
+
 
 /**
  * @brief Initialize RTUPCR
@@ -122,7 +124,7 @@ void RTUPCR::update(void)
 		for (size_t i = 0; i < partitionCount; i++)
 		{
 			convolutionPartition = &convolutionPartitions[0][0] + (512 * reversedPartitionIndex); // Going through partition addresses [partitionIndex => 0]
-			impulsePartition = &impulseResponseFFT[0][0] + (512 * i);							  // [0 => 139]
+			impulsePartition = &impulseResponseFFT[0][0] + (512 * i);							  // [0 => partitionCount - 1]
 
 			// Complex-by-complex multiplication of impulse response sub-filter and audio input samples
 			arm_cmplx_mult_cmplx_f32(convolutionPartition, impulsePartition, cmplxProduct, 256);
