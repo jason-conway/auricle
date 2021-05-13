@@ -143,8 +143,8 @@ void RTUPCR::update(void)
 		// Move the resultant convolution product into left and right audio buffers
 		for (size_t i = 0; i < partitionSize; i++)
 		{
-			leftAudioData[i] = multAccum[2 * i] * 0.05; 
-			rightAudioData[i] = multAccum[2 * i + 1] * 0.05;
+			leftAudioData[i] = multAccum[2 * i] * 0.03; 
+			rightAudioData[i] = multAccum[2 * i + 1] * 0.03;
 		}
 
 		// Convert back to integer for transmit and release

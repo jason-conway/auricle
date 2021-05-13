@@ -57,21 +57,21 @@ private:
 
 //	float32_t impulseResponseFFT[partitionCount][512]; // Partitioned impulse response sub-filters
 
-	float32_t audioConvolutionBuffer[512];			   // Convolution buffer
-	float32_t impulseResponseFFT[partitionCount][512]; // Partitioned impulse response sub-filters
-	float32_t impulsePartitionBuffer[512];
+	float32_t audioConvolutionBuffer[512] = { 0 };			   // Convolution buffer
+	float32_t impulseResponseFFT[partitionCount][512] = { { 0 } }; // Partitioned impulse response sub-filters
+	float32_t impulsePartitionBuffer[512] = { 0 };
 
 	// These keep track of which partition we're on
 	float32_t *convolutionPartition; 
 	float32_t *impulsePartition;
 
-	float32_t leftAudioData[audioBlockSize];	   // Left channel audio data as floating point vector
-	float32_t leftAudioPrevSample[audioBlockSize]; // Left channel N-1
+	float32_t leftAudioData[audioBlockSize] = { 0 };	   // Left channel audio data as floating point vector
+	float32_t leftAudioPrevSample[audioBlockSize] = { 0 }; // Left channel N-1
 
-	float32_t rightAudioData[audioBlockSize];		// Right channel audio data as floating point vector
-	float32_t rightAudioPrevSample[audioBlockSize]; // Right channel N-1
+	float32_t rightAudioData[audioBlockSize] = { 0 };		// Right channel audio data as floating point vector
+	float32_t rightAudioPrevSample[audioBlockSize] = { 0 }; // Right channel N-1
 
-	float32_t multAccum[512];	 // Multiply-and-accumulate (MAC) buffer
-	float32_t cmplxProduct[512]; // Complex-by-complex multiplication buffer
+	float32_t multAccum[512] = { 0 };	 // Multiply-and-accumulate (MAC) buffer
+	float32_t cmplxProduct[512] = { 0 }; // Complex-by-complex multiplication buffer
 };
 #endif
