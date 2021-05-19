@@ -55,7 +55,11 @@ private:
 
 	bool partitionImpulseResponse(float32_t *impulseResponse);
 
-//	float32_t impulseResponseFFT[partitionCount][512]; // Partitioned impulse response sub-filters
+ 	//float32_t impulseResponseFFT[partitionCount][512]; // Partitioned impulse response sub-filters
+	
+	
+	
+
 
 	float32_t audioConvolutionBuffer[512] = { 0 };			   // Convolution buffer
 	float32_t impulseResponseFFT[partitionCount][512] = { { 0 } }; // Partitioned impulse response sub-filters

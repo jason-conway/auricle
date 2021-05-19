@@ -55,6 +55,9 @@ int8_t RTUPCR::begin(float32_t *impulseResponse)
  */
 bool RTUPCR::partitionImpulseResponse(float32_t *impulseResponse)
 {
+	const static arm_cfft_instance_f32 *irCFFT;
+	irCFFT = &arm_cfft_sR_f32_len256;
+
 	for (size_t i = 0; i < partitionCount; i++)
 	{
 		// Clear array each time
@@ -65,7 +68,7 @@ bool RTUPCR::partitionImpulseResponse(float32_t *impulseResponse)
 			impulsePartitionBuffer[2 * j + 256] = impulseResponse[128 * i + j];
 		}
 
-		arm_cfft_f32(&arm_cfft_sR_f32_len256, impulsePartitionBuffer, forwardTransform, 1);
+		arm_cfft_f32(irCFFT, impulsePartitionBuffer, forwardTransform, 1);
 
 		for (size_t j = 0; j < 512; j++)
 		{
@@ -111,7 +114,10 @@ void RTUPCR::update(void)
 			rightAudioPrevSample[i] = rightAudioData[i];
 		}
 
-		arm_cfft_f32(&arm_cfft_sR_f32_len256, audioConvolutionBuffer, forwardTransform, 1); // FFT of input audio buffer
+		// FFT of input audio buffer
+		const static arm_cfft_instance_f32 *acbCFFT;
+		acbCFFT = &arm_cfft_sR_f32_len256;
+		arm_cfft_f32(acbCFFT, audioConvolutionBuffer, forwardTransform, 1); 
 
 		convolutionPartition = &convolutionPartitions[0][0] + (512 * partitionIndex); // Address of the current partition
 
@@ -140,7 +146,9 @@ void RTUPCR::update(void)
 		partitionIndex = ((partitionIndex + 1) >= partitionCount) ? 0 : (partitionIndex + 1);
 
 		// Take the inverse FFT of the MAC product
-		arm_cfft_f32(&arm_cfft_sR_f32_len256, multAccum, inverseTransform, 1);
+		const static arm_cfft_instance_f32 *multAccumCIFFT;
+		multAccumCIFFT = &arm_cfft_sR_f32_len256;
+		arm_cfft_f32(multAccumCIFFT, multAccum, inverseTransform, 1);
 
 		// Move the resultant convolution product into left and right audio buffers
 		for (size_t i = 0; i < partitionSize; i++)
