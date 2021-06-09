@@ -30,10 +30,10 @@ int main(void)
 	Serial.begin(115200);
 	while (!(Serial))
 	{
-		delay(50);
+		delay(500);
 	}
-
-	Serial.printf("Serial connected\n");
+	
+	Serial.printf(((const __FlashStringHelper *)("Serial connected\n")));
 
 	static DMAMEM audio_block_t audioMemory[70];
 	AudioStream::initialize_memory(audioMemory, 70);
@@ -41,20 +41,23 @@ int main(void)
 	codec.enable();
 	codec.volume(0.5);
 
-	if (!(convolve.begin(IR)))
+	if (!(convolve.begin(leftIR, rightIR)))
 	{
-		Serial.printf("IR Filter Created\n");
+		Serial.printf(((const __FlashStringHelper *)("IR Filter Created\n")));
 	}
-	
+
 	while (1)
 	{
 		float32_t masterVolume = stereoIn.volume();
-
 		if (masterVolume > 0)
 		{
 			masterVolume = 0.5 * masterVolume + 0.3;
 		}
 		codec.volume(masterVolume);
+
+		float32_t usage = (((AudioStream::cpu_cycles_total) + (F_CPU_ACTUAL / 128 / 44100.0f * 128 / 100)) / (F_CPU_ACTUAL / 64 / 44100.0f * 128 / 100));
+		Serial.printf("%.1f%%\n", usage);
+
 		delay(100);
 	}
 

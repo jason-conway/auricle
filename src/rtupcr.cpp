@@ -11,36 +11,36 @@
 
 #include "rtupcr.h"
 
+float32_t __attribute__((section(".dmabuffers"), used)) audioConvolutionBuffer[512];
 
-// DMA buffer
-float32_t __attribute__ ((section(".dmabuffers"), used)) convolutionPartitions[partitionCount][512]; // TODO: Initialize pointer here
-
+float32_t __attribute__((section(".dmabuffers"), used)) leftAudioData[STREAM_BLOCK_SIZE];		 // Left channel audio data as floating point vector
+float32_t __attribute__((section(".dmabuffers"), used)) leftAudioPrevSample[STREAM_BLOCK_SIZE];	 // Left channel N-1
+float32_t __attribute__((section(".dmabuffers"), used)) rightAudioData[STREAM_BLOCK_SIZE];		 // Right channel audio data as floating point vector
+float32_t __attribute__((section(".dmabuffers"), used)) rightAudioPrevSample[STREAM_BLOCK_SIZE]; // Right channel N-1
 
 /**
- * @brief Initialize RTUPCR
+ * @brief 
  * 
- * @param[in] impulseResponse Input pointer to the impulse response array
- * @return true 
- * @return false 
+ * @param leftImpulseResponse 
+ * @param rightImpulseResponse 
+ * @return int8_t 
  */
-int8_t RTUPCR::begin(float32_t *impulseResponse)
+RTUPCR_STATUS RTUPCR::begin(float32_t *leftImpulseResponse, float32_t *rightImpulseResponse)
 {
-	if (!(partitionImpulseResponse(impulseResponse)))
+	for (size_t i = 0; i < PARTITION_COUNT; i++)
 	{
-		Serial.printf("Error: sub-filter partitioning\n");
-		return PARTITION_FAILURE;
+		arm_fill_f32(0.0f, convolutionPartitions[i], 512);
+		arm_fill_f32(0.0f, leftImpulseResponseFFT[i], 512);
+		arm_fill_f32(0.0f, rightImpulseResponseFFT[i], 512);
 	}
 
-	arm_fill_f32(0.0, audioConvolutionBuffer, 512);
-
-	for (size_t i = 0; i < partitionCount; i++)
-	{
-		arm_fill_f32(0.0, convolutionPartitions[i], 512);
-	}
+	partitionImpulseResponses(leftImpulseResponse, leftImpulseResponseFFT, rightImpulseResponse, rightImpulseResponseFFT);
 
 	audioReady = true;
 
-	return INIT_SUCCESS;
+	Serial.printf(((const __FlashStringHelper *)("Impulse Response FFTs Completed\n")));
+
+	return RTUPCR_SUCCESS;
 }
 
 /**
@@ -49,34 +49,126 @@ int8_t RTUPCR::begin(float32_t *impulseResponse)
  * number of forward FFTs that need to be computed. Since multiple convolutions are summed together, the overall 
  * number of inverse FFTs is also cut down.
  * 
- * @param[in] impulseResponse Pointer to the IR coefficients to process
- * @return true 
- * @return false 
+ * @param leftImpulseResponse 
+ * @param leftImpulseResponseFFT 
+ * @param rightImpulseResponse 
+ * @param rightImpulseResponseFFT 
+ * @return RTUPCR_STATUS 
  */
-bool RTUPCR::partitionImpulseResponse(float32_t *impulseResponse)
+RTUPCR_STATUS RTUPCR::partitionImpulseResponses(float32_t *leftImpulseResponse, float32_t (*leftImpulseResponseFFT)[512], float32_t *rightImpulseResponse, float32_t (*rightImpulseResponseFFT)[512])
 {
-	const static arm_cfft_instance_f32 *irCFFT;
-	irCFFT = &arm_cfft_sR_f32_len256;
-
-	for (size_t i = 0; i < partitionCount; i++)
+	for (size_t i = 0; i < 2; i++)
 	{
-		// Clear array each time
-		arm_fill_f32(0.0, impulsePartitionBuffer, 512);
+		float32_t impulsePartitionBuffer[512];
 
-		for (size_t j = 0; j < partitionSize; j++)
+		for (size_t j = 0; j < PARTITION_COUNT; j++)
 		{
-			impulsePartitionBuffer[2 * j + 256] = impulseResponse[128 * i + j];
-		}
+			arm_fill_f32(0.0f, impulsePartitionBuffer, 512);
 
-		arm_cfft_f32(irCFFT, impulsePartitionBuffer, forwardTransform, 1);
+			for (size_t k = 0; k < PARTITION_SIZE; k++)
+			{
+				if (!(i))
+				{
+					impulsePartitionBuffer[2 * k + 256] = leftImpulseResponse[128 * j + k];
+				}
+				else
+				{
+					impulsePartitionBuffer[2 * k + 256] = rightImpulseResponse[128 * j + k];
+				}
+			}
 
-		for (size_t j = 0; j < 512; j++)
-		{
-			impulseResponseFFT[i][j] = impulsePartitionBuffer[j];
+			arm_cfft_f32(&arm_cfft_sR_f32_len256, impulsePartitionBuffer, FORWARD, 1);
+
+			for (size_t k = 0; k < 512; k++)
+			{
+				if (!(i))
+				{
+					leftImpulseResponseFFT[j][k] = impulsePartitionBuffer[k];
+				}
+				else
+				{
+					rightImpulseResponseFFT[j][k] = impulsePartitionBuffer[k];
+				}
+			}
 		}
 	}
 
-	return true;
+	return RTUPCR_SUCCESS;
+}
+
+/**
+ * @brief 
+ * 
+ * @param leftImpulseResponseFFT 
+ * @param rightImpulseResponseFFT 
+ * @return RTUPCR_STATUS 
+ */
+RTUPCR_STATUS RTUPCR::convolve(float32_t (*leftImpulseResponseFFT)[512], float32_t (*rightImpulseResponseFFT)[512])
+{
+	float32_t multAccum[512];
+
+	for (size_t i = 0; i < 2; i++)
+	{
+		arm_fill_f32(0.0f, multAccum, 512); // Clear out previous data in accumulator
+
+		int16_t shiftIndex = partitionIndex; // Set new starting point
+
+		if (!(i))
+		{
+			cmplxMultCmplx(multAccum, leftImpulseResponseFFT, shiftIndex);
+		}
+		else
+		{
+			cmplxMultCmplx(multAccum, rightImpulseResponseFFT, shiftIndex);
+		}
+
+		arm_cfft_f32(&arm_cfft_sR_f32_len256, multAccum, INVERSE, 1);
+
+		// Move the resultant convolution product into left and right audio buffers
+		for (size_t j = 0; j < PARTITION_SIZE; j++)
+		{
+			if (!(i))
+			{
+				leftAudioData[j] = multAccum[j * 2] * 0.03;
+			}
+			else
+			{
+				rightAudioData[j] = multAccum[j * 2 + 1] * 0.03;
+			}
+		}
+	}
+
+	return RTUPCR_SUCCESS;
+}
+
+/**
+ * @brief Complex-by-complex multiplication of impulse response sub-filter and audio input samples
+ * 
+ * @param accumulator 
+ * @param impulseResponseFFT 
+ * @param shiftIndex 
+ * @return RTUPCR_STATUS 
+ */
+RTUPCR_STATUS RTUPCR::cmplxMultCmplx(float32_t *accumulator, float32_t (*impulseResponseFFT)[512], int16_t shiftIndex)
+{
+	for (size_t i = 0; i < PARTITION_COUNT; i++)
+	{
+		for (size_t j = 0; j < 256; j = j + 4)
+		{
+			accumulator[2 * j + 0x0] += impulseResponseFFT[i][2 * j + 0x0] * convolutionPartitions[shiftIndex][2 * j + 0x0] - impulseResponseFFT[i][2 * j + 0x1] * convolutionPartitions[shiftIndex][2 * j + 0x1];
+			accumulator[2 * j + 0x1] += impulseResponseFFT[i][2 * j + 0x1] * convolutionPartitions[shiftIndex][2 * j + 0x0] + impulseResponseFFT[i][2 * j + 0x0] * convolutionPartitions[shiftIndex][2 * j + 0x1];
+			accumulator[2 * j + 0x2] += impulseResponseFFT[i][2 * j + 0x2] * convolutionPartitions[shiftIndex][2 * j + 0x2] - impulseResponseFFT[i][2 * j + 0x3] * convolutionPartitions[shiftIndex][2 * j + 0x3];
+			accumulator[2 * j + 0x3] += impulseResponseFFT[i][2 * j + 0x3] * convolutionPartitions[shiftIndex][2 * j + 0x2] + impulseResponseFFT[i][2 * j + 0x2] * convolutionPartitions[shiftIndex][2 * j + 0x3];
+			accumulator[2 * j + 0x4] += impulseResponseFFT[i][2 * j + 0x4] * convolutionPartitions[shiftIndex][2 * j + 0x4] - impulseResponseFFT[i][2 * j + 0x5] * convolutionPartitions[shiftIndex][2 * j + 0x5];
+			accumulator[2 * j + 0x5] += impulseResponseFFT[i][2 * j + 0x5] * convolutionPartitions[shiftIndex][2 * j + 0x4] + impulseResponseFFT[i][2 * j + 0x4] * convolutionPartitions[shiftIndex][2 * j + 0x5];
+			accumulator[2 * j + 0x6] += impulseResponseFFT[i][2 * j + 0x6] * convolutionPartitions[shiftIndex][2 * j + 0x6] - impulseResponseFFT[i][2 * j + 0x7] * convolutionPartitions[shiftIndex][2 * j + 0x7];
+			accumulator[2 * j + 0x7] += impulseResponseFFT[i][2 * j + 0x7] * convolutionPartitions[shiftIndex][2 * j + 0x6] + impulseResponseFFT[i][2 * j + 0x6] * convolutionPartitions[shiftIndex][2 * j + 0x7];
+		}
+
+		// Decrease counter by 1 until we've reached zero, then restart
+		shiftIndex = ((shiftIndex - 1) < 0) ? (PARTITION_COUNT - 1) : (shiftIndex - 1);
+	}
+	return RTUPCR_SUCCESS;
 }
 
 /**
@@ -96,10 +188,10 @@ void RTUPCR::update(void)
 	if (leftAudio && rightAudio) // Data available on both the left and right channels
 	{
 		// Use float32 for higher precision intermediate calculations
-		arm_q15_to_float(leftAudio->data, leftAudioData, audioBlockSize);
-		arm_q15_to_float(rightAudio->data, rightAudioData, audioBlockSize);
+		arm_q15_to_float(leftAudio->data, leftAudioData, STREAM_BLOCK_SIZE);
+		arm_q15_to_float(rightAudio->data, rightAudioData, STREAM_BLOCK_SIZE);
 
-		for (size_t i = 0; i < partitionSize; i++)
+		for (size_t i = 0; i < PARTITION_SIZE; i++)
 		{
 			// Fill the first half of audioConvolutionBuffer with audio data from the previous sample
 			audioConvolutionBuffer[2 * i] = leftAudioPrevSample[i];		 // [0] [2] [4] ... [254]
@@ -114,52 +206,20 @@ void RTUPCR::update(void)
 			rightAudioPrevSample[i] = rightAudioData[i];
 		}
 
-		// FFT of input audio buffer
-		const static arm_cfft_instance_f32 *acbCFFT;
-		acbCFFT = &arm_cfft_sR_f32_len256;
-		arm_cfft_f32(acbCFFT, audioConvolutionBuffer, forwardTransform, 1); 
+		arm_cfft_f32(&arm_cfft_sR_f32_len256, audioConvolutionBuffer, FORWARD, 1);
 
-		convolutionPartition = &convolutionPartitions[0][0] + (512 * partitionIndex); // Address of the current partition
-
-		arm_copy_f32(audioConvolutionBuffer, convolutionPartition, 512); // Copy result from FFT into current partition
-
-		arm_fill_f32(0.0, multAccum, 512); // Clear out previous data in accumulator
-
-		reversedPartitionIndex = partitionIndex; // Set new starting point
-
-		for (size_t i = 0; i < partitionCount; i++)
+		for (size_t i = 0; i < 512; i++)
 		{
-			convolutionPartition = &convolutionPartitions[0][0] + (512 * reversedPartitionIndex); // Going through partition addresses [partitionIndex => 0]
-			impulsePartition = &impulseResponseFFT[0][0] + (512 * i);							  // [0 => partitionCount - 1]
-
-			// Complex-by-complex multiplication of impulse response sub-filter and audio input samples
-			arm_cmplx_mult_cmplx_f32(convolutionPartition, impulsePartition, cmplxProduct, 256);
-
-			// Add complex product to buffer
-			arm_add_f32(multAccum, cmplxProduct, multAccum, 512);
-
-			// Decrease counter by 1 until we've reached zero, then restart
-			reversedPartitionIndex = ((reversedPartitionIndex - 1) < 0) ? (partitionCount - 1) : (reversedPartitionIndex - 1);
+			convolutionPartitions[partitionIndex][i] = audioConvolutionBuffer[i];
 		}
+
+		convolve(leftImpulseResponseFFT, rightImpulseResponseFFT);
 
 		// Increase counter by 1 until we've reached the number of partitions, then reset counter to 0
-		partitionIndex = ((partitionIndex + 1) >= partitionCount) ? 0 : (partitionIndex + 1);
+		partitionIndex = ((partitionIndex + 1) >= PARTITION_COUNT) ? 0 : (partitionIndex + 1);
 
-		// Take the inverse FFT of the MAC product
-		const static arm_cfft_instance_f32 *multAccumCIFFT;
-		multAccumCIFFT = &arm_cfft_sR_f32_len256;
-		arm_cfft_f32(multAccumCIFFT, multAccum, inverseTransform, 1);
-
-		// Move the resultant convolution product into left and right audio buffers
-		for (size_t i = 0; i < partitionSize; i++)
-		{
-			leftAudioData[i] = multAccum[2 * i] * 0.03; 
-			rightAudioData[i] = multAccum[2 * i + 1] * 0.03;
-		}
-
-		// Convert back to integer for transmit and release
-		arm_float_to_q15(leftAudioData, leftAudio->data, audioBlockSize);
-		arm_float_to_q15(rightAudioData, rightAudio->data, audioBlockSize);
+		arm_float_to_q15(leftAudioData, leftAudio->data, STREAM_BLOCK_SIZE);
+		arm_float_to_q15(rightAudioData, rightAudio->data, STREAM_BLOCK_SIZE);
 
 		// Transmit left and right audio to the output
 		transmit(leftAudio, STEREO_LEFT);

@@ -16,18 +16,23 @@
 #include <arm_math.h>
 #include <arm_const_structs.h>
 
-#define partitionSize 128
-#define partitionCount 172
-#define audioBlockSize 128
+#define PARTITION_SIZE 128
+#define PARTITION_COUNT 64
+#define STREAM_BLOCK_SIZE 128
 
 // IFFT Flags
-#define forwardTransform 0
-#define inverseTransform 1
+#define FORWARD 0
+#define INVERSE 1
 
 // Return Values
-#define PARTITION_SUCCESS 0
-#define PARTITION_FAILURE 1
-#define INIT_SUCCESS 0
+typedef enum
+{
+	RTUPCR_SUCCESS = 0,	
+	PARTITION_FAILURE = -1,	 
+	CMPLX_MULT_FAILURE = -2,
+	CONVOLVE_FAILURE = -3
+} RTUPCR_STATUS;
+
 
 class RTUPCR : public AudioStream
 {
@@ -37,7 +42,7 @@ public:
 		// Constructor
 	}
 
-	int8_t begin(float32_t *impulseResponse);
+	RTUPCR_STATUS begin(float32_t *leftImpulseResponse, float32_t *rightImpulseResponse);
 	virtual void update(void);
 
 	enum Channels
@@ -48,34 +53,17 @@ public:
 
 private:
 	audio_block_t *inputQueueArray[2];
-	int16_t partitionIndex = 0;
-	int16_t reversedPartitionIndex = 0;
+
+	RTUPCR_STATUS partitionImpulseResponses(float32_t *leftImpulseResponse, float32_t (*leftImpulseResponseFFT)[512], float32_t *rightImpulseResponse, float32_t (*rightImpulseResponseFFT)[512]);
+	RTUPCR_STATUS convolve(float32_t (*leftImpulseResponseFFT)[512], float32_t (*rightImpulseResponseFFT)[512]);
+	RTUPCR_STATUS cmplxMultCmplx(float32_t *accumulator, float32_t (*impulseResponseFFT)[512], int16_t shiftIndex);
 
 	bool audioReady = false;
+	uint16_t partitionIndex = 0;
 
-	bool partitionImpulseResponse(float32_t *impulseResponse);
+	float32_t leftImpulseResponseFFT[PARTITION_COUNT][512];
+	float32_t rightImpulseResponseFFT[PARTITION_COUNT][512];
 
- 	//float32_t impulseResponseFFT[partitionCount][512]; // Partitioned impulse response sub-filters
-	
-	
-	
-
-
-	float32_t audioConvolutionBuffer[512] = { 0 };			   // Convolution buffer
-	float32_t impulseResponseFFT[partitionCount][512] = { { 0 } }; // Partitioned impulse response sub-filters
-	float32_t impulsePartitionBuffer[512] = { 0 };
-
-	// These keep track of which partition we're on
-	float32_t *convolutionPartition; // TODO: Initialize 
-	float32_t *impulsePartition = &impulseResponseFFT[0][0];
-
-	float32_t leftAudioData[audioBlockSize] = { 0 };	   // Left channel audio data as floating point vector
-	float32_t leftAudioPrevSample[audioBlockSize] = { 0 }; // Left channel N-1
-
-	float32_t rightAudioData[audioBlockSize] = { 0 };		// Right channel audio data as floating point vector
-	float32_t rightAudioPrevSample[audioBlockSize] = { 0 }; // Right channel N-1
-
-	float32_t multAccum[512] = { 0 };	 // Multiply-and-accumulate (MAC) buffer
-	float32_t cmplxProduct[512] = { 0 }; // Complex-by-complex multiplication buffer
+	float32_t convolutionPartitions[PARTITION_COUNT][512];
 };
 #endif
