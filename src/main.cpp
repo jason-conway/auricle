@@ -1,7 +1,7 @@
 /**
  * @file main.cpp
  * @author Jason Conway (jpc@jasonconway.dev)
- * @brief Impulse Response Convolution Reverb for Arm Cortex-M7
+ * @brief Spatial Audio for Arm Cortex-M7
  * @version 0.1
  * @date 2021-05-04
  * 
@@ -10,10 +10,10 @@
  */
 
 #include "convolvir.h"
-#include "rtupcr.h"
+#include "auricle.h"
 #include "IR.h"
 
-RTUPCR convolve;
+Auricle convolve;
 
 AudioInputUSB stereoIn;
 AudioOutputI2S stereoOut;
@@ -41,7 +41,11 @@ int main(void)
 	codec.enable();
 	codec.volume(0.5);
 
-	if (!(convolve.begin(leftIR, rightIR)))
+	HRIR_t ir;
+	ir.leftIR = leftIR;
+	ir.rightIR = rightIR;
+	
+	if (!(convolve.begin(ir)))
 	{
 		Serial.printf(((const __FlashStringHelper *)("IR Filter Created\n")));
 	}

@@ -1,7 +1,7 @@
 /**
- * @file rtupcr.cpp
+ * @file auricle.cpp
  * @author Jason Conway (jpc@jasonconway.dev)
- * @brief Real-Time Uniformly-Partitioned Convolution Reverb
+ * @brief Real-Time Uniformly-Partitioned Convolution 
  * @version 0.1
  * @date 2021-05-04
  * 
@@ -9,7 +9,8 @@
  * 
  */
 
-#include "rtupcr.h"
+
+#include "auricle.h"
 
 float32_t __attribute__((section(".dmabuffers"), used)) audioConvolutionBuffer[512];
 
@@ -25,22 +26,25 @@ float32_t __attribute__((section(".dmabuffers"), used)) rightAudioPrevSample[STR
  * @param rightImpulseResponse 
  * @return int8_t 
  */
-RTUPCR_STATUS RTUPCR::begin(float32_t *leftImpulseResponse, float32_t *rightImpulseResponse)
+int8_t Auricle::begin(const HRIR_t ir)
 {
 	for (size_t i = 0; i < PARTITION_COUNT; i++)
 	{
 		arm_fill_f32(0.0f, convolutionPartitions[i], 512);
-		arm_fill_f32(0.0f, leftImpulseResponseFFT[i], 512);
-		arm_fill_f32(0.0f, rightImpulseResponseFFT[i], 512);
+		arm_fill_f32(0.0f, tf.leftTF[i], 512);
+		arm_fill_f32(0.0f, tf.rightTF[i], 512);
 	}
 
-	partitionImpulseResponses(leftImpulseResponse, leftImpulseResponseFFT, rightImpulseResponse, rightImpulseResponseFFT);
+	if (!(convertHRIR(ir) == 0))
+	{
+		Serial.printf(((const __FlashStringHelper *)("Error Computing HRTFs\n")));
+	}
 
 	audioReady = true;
 
-	Serial.printf(((const __FlashStringHelper *)("Impulse Response FFTs Completed\n")));
+	Serial.printf(((const __FlashStringHelper *)("HRTFs Computed\n")));
 
-	return RTUPCR_SUCCESS;
+	return 0;
 }
 
 /**
@@ -53,9 +57,9 @@ RTUPCR_STATUS RTUPCR::begin(float32_t *leftImpulseResponse, float32_t *rightImpu
  * @param leftImpulseResponseFFT 
  * @param rightImpulseResponse 
  * @param rightImpulseResponseFFT 
- * @return RTUPCR_STATUS 
+ * @return int8_t 
  */
-RTUPCR_STATUS RTUPCR::partitionImpulseResponses(float32_t *leftImpulseResponse, float32_t (*leftImpulseResponseFFT)[512], float32_t *rightImpulseResponse, float32_t (*rightImpulseResponseFFT)[512])
+int8_t Auricle::convertHRIR(const HRIR_t ir)//float32_t *leftImpulseResponse, float32_t (*leftImpulseResponseFFT)[512], float32_t *rightImpulseResponse, float32_t (*rightImpulseResponseFFT)[512])
 {
 	for (size_t i = 0; i < 2; i++)
 	{
@@ -69,11 +73,11 @@ RTUPCR_STATUS RTUPCR::partitionImpulseResponses(float32_t *leftImpulseResponse, 
 			{
 				if (!(i))
 				{
-					impulsePartitionBuffer[2 * k + 256] = leftImpulseResponse[128 * j + k];
+					impulsePartitionBuffer[2 * k + 256] = ir.leftIR[128 * j + k];
 				}
 				else
 				{
-					impulsePartitionBuffer[2 * k + 256] = rightImpulseResponse[128 * j + k];
+					impulsePartitionBuffer[2 * k + 256] = ir.rightIR[128 * j + k];
 				}
 			}
 
@@ -83,17 +87,17 @@ RTUPCR_STATUS RTUPCR::partitionImpulseResponses(float32_t *leftImpulseResponse, 
 			{
 				if (!(i))
 				{
-					leftImpulseResponseFFT[j][k] = impulsePartitionBuffer[k];
+					tf.leftTF[j][k] = impulsePartitionBuffer[k];
 				}
 				else
 				{
-					rightImpulseResponseFFT[j][k] = impulsePartitionBuffer[k];
+					tf.rightTF[j][k] = impulsePartitionBuffer[k];
 				}
 			}
 		}
 	}
 
-	return RTUPCR_SUCCESS;
+	return 0;
 }
 
 /**
@@ -101,25 +105,25 @@ RTUPCR_STATUS RTUPCR::partitionImpulseResponses(float32_t *leftImpulseResponse, 
  * 
  * @param leftImpulseResponseFFT 
  * @param rightImpulseResponseFFT 
- * @return RTUPCR_STATUS 
+ * @return int8_t 
  */
-RTUPCR_STATUS RTUPCR::convolve(float32_t (*leftImpulseResponseFFT)[512], float32_t (*rightImpulseResponseFFT)[512])
+int8_t Auricle::convolve(void)
 {
 	float32_t multAccum[512];
 
-	for (size_t i = 0; i < 2; i++)
+	for (size_t i = 0; i < 2; i++) // Two iterations - left and right
 	{
 		arm_fill_f32(0.0f, multAccum, 512); // Clear out previous data in accumulator
 
-		int16_t shiftIndex = partitionIndex; // Set new starting point
+		int16_t shiftIndex = partitionIndex; // Set new starting point for sliding convolutionPartitions over the FFT of the impulse response
 
 		if (!(i))
 		{
-			cmplxMultCmplx(multAccum, leftImpulseResponseFFT, shiftIndex);
+			cmplxMultCmplx(multAccum, tf.leftTF, shiftIndex);
 		}
 		else
 		{
-			cmplxMultCmplx(multAccum, rightImpulseResponseFFT, shiftIndex);
+			cmplxMultCmplx(multAccum, tf.rightTF, shiftIndex);
 		}
 
 		arm_cfft_f32(&arm_cfft_sR_f32_len256, multAccum, INVERSE, 1);
@@ -138,7 +142,7 @@ RTUPCR_STATUS RTUPCR::convolve(float32_t (*leftImpulseResponseFFT)[512], float32
 		}
 	}
 
-	return RTUPCR_SUCCESS;
+	return 0;
 }
 
 /**
@@ -147,9 +151,9 @@ RTUPCR_STATUS RTUPCR::convolve(float32_t (*leftImpulseResponseFFT)[512], float32
  * @param accumulator 
  * @param impulseResponseFFT 
  * @param shiftIndex 
- * @return RTUPCR_STATUS 
+ * @return int8_t 
  */
-RTUPCR_STATUS RTUPCR::cmplxMultCmplx(float32_t *accumulator, float32_t (*impulseResponseFFT)[512], int16_t shiftIndex)
+int8_t Auricle::cmplxMultCmplx(float32_t *accumulator, float32_t (*impulseResponseFFT)[512], int16_t shiftIndex)
 {
 	for (size_t i = 0; i < PARTITION_COUNT; i++)
 	{
@@ -168,14 +172,14 @@ RTUPCR_STATUS RTUPCR::cmplxMultCmplx(float32_t *accumulator, float32_t (*impulse
 		// Decrease counter by 1 until we've reached zero, then restart
 		shiftIndex = ((shiftIndex - 1) < 0) ? (PARTITION_COUNT - 1) : (shiftIndex - 1);
 	}
-	return RTUPCR_SUCCESS;
+	return 0;
 }
 
 /**
  * @brief Updates every 128 samples / 2.9 ms
  * 
  */
-void RTUPCR::update(void)
+void Auricle::update(void)
 {
 	if (!(audioReady)) // Impulse response hasn't been processed yet
 	{
@@ -213,7 +217,7 @@ void RTUPCR::update(void)
 			convolutionPartitions[partitionIndex][i] = audioConvolutionBuffer[i];
 		}
 
-		convolve(leftImpulseResponseFFT, rightImpulseResponseFFT);
+		convolve();
 
 		// Increase counter by 1 until we've reached the number of partitions, then reset counter to 0
 		partitionIndex = ((partitionIndex + 1) >= PARTITION_COUNT) ? 0 : (partitionIndex + 1);
