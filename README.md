@@ -1,2 +1,2 @@
-# convolvIR
- Impulse Response Convolution Reverb for the Arm Cortex-M7
+# auricle
+ HRTF-based audio spatialization using overlap-save method on the Arm Cortex-M7
