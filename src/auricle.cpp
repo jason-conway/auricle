@@ -9,33 +9,31 @@
  * 
  */
 
-
 #include "auricle.h"
 
 float32_t __attribute__((section(".dmabuffers"), used)) audioConvolutionBuffer[512];
 
-float32_t __attribute__((section(".dmabuffers"), used)) leftAudioData[STREAM_BLOCK_SIZE];		 // Left channel audio data as floating point vector
-float32_t __attribute__((section(".dmabuffers"), used)) leftAudioPrevSample[STREAM_BLOCK_SIZE];	 // Left channel N-1
-float32_t __attribute__((section(".dmabuffers"), used)) rightAudioData[STREAM_BLOCK_SIZE];		 // Right channel audio data as floating point vector
-float32_t __attribute__((section(".dmabuffers"), used)) rightAudioPrevSample[STREAM_BLOCK_SIZE]; // Right channel N-1
+float32_t __attribute__((section(".dmabuffers"), used)) leftAudioData[128];		   // Left channel audio data as floating point vector
+float32_t __attribute__((section(".dmabuffers"), used)) leftAudioPrevSample[128];  // Left channel N-1
+float32_t __attribute__((section(".dmabuffers"), used)) rightAudioData[128];	   // Right channel audio data as floating point vector
+float32_t __attribute__((section(".dmabuffers"), used)) rightAudioPrevSample[128]; // Right channel N-1
 
 /**
  * @brief 
  * 
- * @param leftImpulseResponse 
- * @param rightImpulseResponse 
+ * @param hrir 
  * @return int8_t 
  */
-int8_t Auricle::begin(const HRIR_t ir)
+int8_t Auricle::begin(const HRIR *hrir)
 {
 	for (size_t i = 0; i < PARTITION_COUNT; i++)
 	{
 		arm_fill_f32(0.0f, convolutionPartitions[i], 512);
-		arm_fill_f32(0.0f, tf.leftTF[i], 512);
-		arm_fill_f32(0.0f, tf.rightTF[i], 512);
+		arm_fill_f32(0.0f, hrtf.leftTF[i], 512);
+		arm_fill_f32(0.0f, hrtf.rightTF[i], 512);
 	}
 
-	if (!(convertHRIR(ir) == 0))
+	if (!(convertHRIR(hrir)))
 	{
 		Serial.printf(((const __FlashStringHelper *)("Error Computing HRTFs\n")));
 	}
@@ -53,13 +51,10 @@ int8_t Auricle::begin(const HRIR_t ir)
  * number of forward FFTs that need to be computed. Since multiple convolutions are summed together, the overall 
  * number of inverse FFTs is also cut down.
  * 
- * @param leftImpulseResponse 
- * @param leftImpulseResponseFFT 
- * @param rightImpulseResponse 
- * @param rightImpulseResponseFFT 
+ * @param hrir 
  * @return int8_t 
  */
-int8_t Auricle::convertHRIR(const HRIR_t ir)//float32_t *leftImpulseResponse, float32_t (*leftImpulseResponseFFT)[512], float32_t *rightImpulseResponse, float32_t (*rightImpulseResponseFFT)[512])
+int8_t Auricle::convertHRIR(const HRIR *hrir)
 {
 	for (size_t i = 0; i < 2; i++)
 	{
@@ -73,26 +68,23 @@ int8_t Auricle::convertHRIR(const HRIR_t ir)//float32_t *leftImpulseResponse, fl
 			{
 				if (!(i))
 				{
-					impulsePartitionBuffer[2 * k + 256] = ir.leftIR[128 * j + k];
+					impulsePartitionBuffer[2 * k + 256] = hrir->leftIR[128 * j + k];
 				}
 				else
 				{
-					impulsePartitionBuffer[2 * k + 256] = ir.rightIR[128 * j + k];
+					impulsePartitionBuffer[2 * k + 256] = hrir->rightIR[128 * j + k];
 				}
 			}
 
 			arm_cfft_f32(&arm_cfft_sR_f32_len256, impulsePartitionBuffer, FORWARD, 1);
 
-			for (size_t k = 0; k < 512; k++)
+			if (!(i))
 			{
-				if (!(i))
-				{
-					tf.leftTF[j][k] = impulsePartitionBuffer[k];
-				}
-				else
-				{
-					tf.rightTF[j][k] = impulsePartitionBuffer[k];
-				}
+				arm_copy_f32(impulsePartitionBuffer, hrtf.leftTF[j], 512);
+			}
+			else
+			{
+				arm_copy_f32(impulsePartitionBuffer, hrtf.rightTF[j], 512);
 			}
 		}
 	}
@@ -119,11 +111,11 @@ int8_t Auricle::convolve(void)
 
 		if (!(i))
 		{
-			cmplxMultCmplx(multAccum, tf.leftTF, shiftIndex);
+			cmplxMultCmplx(multAccum, hrtf.leftTF, shiftIndex);
 		}
 		else
 		{
-			cmplxMultCmplx(multAccum, tf.rightTF, shiftIndex);
+			cmplxMultCmplx(multAccum, hrtf.rightTF, shiftIndex);
 		}
 
 		arm_cfft_f32(&arm_cfft_sR_f32_len256, multAccum, INVERSE, 1);
@@ -133,11 +125,11 @@ int8_t Auricle::convolve(void)
 		{
 			if (!(i))
 			{
-				leftAudioData[j] = multAccum[j * 2] * 0.03;
+				leftAudioData[j] = multAccum[2 * j] * 0.03;
 			}
 			else
 			{
-				rightAudioData[j] = multAccum[j * 2 + 1] * 0.03;
+				rightAudioData[j] = multAccum[2 * j + 1] * 0.03;
 			}
 		}
 	}
@@ -146,27 +138,27 @@ int8_t Auricle::convolve(void)
 }
 
 /**
- * @brief Complex-by-complex multiplication of impulse response sub-filter and audio input samples
+ * @brief Complex-by-complex multiplication of HRTF and audio input samples
  * 
  * @param accumulator 
  * @param impulseResponseFFT 
  * @param shiftIndex 
  * @return int8_t 
  */
-int8_t Auricle::cmplxMultCmplx(float32_t *accumulator, float32_t (*impulseResponseFFT)[512], int16_t shiftIndex)
+int8_t Auricle::cmplxMultCmplx(float32_t *accumulator, float32_t (*hrtf)[512], int16_t shiftIndex)
 {
 	for (size_t i = 0; i < PARTITION_COUNT; i++)
 	{
 		for (size_t j = 0; j < 256; j = j + 4)
 		{
-			accumulator[2 * j + 0x0] += impulseResponseFFT[i][2 * j + 0x0] * convolutionPartitions[shiftIndex][2 * j + 0x0] - impulseResponseFFT[i][2 * j + 0x1] * convolutionPartitions[shiftIndex][2 * j + 0x1];
-			accumulator[2 * j + 0x1] += impulseResponseFFT[i][2 * j + 0x1] * convolutionPartitions[shiftIndex][2 * j + 0x0] + impulseResponseFFT[i][2 * j + 0x0] * convolutionPartitions[shiftIndex][2 * j + 0x1];
-			accumulator[2 * j + 0x2] += impulseResponseFFT[i][2 * j + 0x2] * convolutionPartitions[shiftIndex][2 * j + 0x2] - impulseResponseFFT[i][2 * j + 0x3] * convolutionPartitions[shiftIndex][2 * j + 0x3];
-			accumulator[2 * j + 0x3] += impulseResponseFFT[i][2 * j + 0x3] * convolutionPartitions[shiftIndex][2 * j + 0x2] + impulseResponseFFT[i][2 * j + 0x2] * convolutionPartitions[shiftIndex][2 * j + 0x3];
-			accumulator[2 * j + 0x4] += impulseResponseFFT[i][2 * j + 0x4] * convolutionPartitions[shiftIndex][2 * j + 0x4] - impulseResponseFFT[i][2 * j + 0x5] * convolutionPartitions[shiftIndex][2 * j + 0x5];
-			accumulator[2 * j + 0x5] += impulseResponseFFT[i][2 * j + 0x5] * convolutionPartitions[shiftIndex][2 * j + 0x4] + impulseResponseFFT[i][2 * j + 0x4] * convolutionPartitions[shiftIndex][2 * j + 0x5];
-			accumulator[2 * j + 0x6] += impulseResponseFFT[i][2 * j + 0x6] * convolutionPartitions[shiftIndex][2 * j + 0x6] - impulseResponseFFT[i][2 * j + 0x7] * convolutionPartitions[shiftIndex][2 * j + 0x7];
-			accumulator[2 * j + 0x7] += impulseResponseFFT[i][2 * j + 0x7] * convolutionPartitions[shiftIndex][2 * j + 0x6] + impulseResponseFFT[i][2 * j + 0x6] * convolutionPartitions[shiftIndex][2 * j + 0x7];
+			accumulator[2 * j + 0x0] += hrtf[i][2 * j + 0x0] * convolutionPartitions[shiftIndex][2 * j + 0x0] - hrtf[i][2 * j + 0x1] * convolutionPartitions[shiftIndex][2 * j + 0x1];
+			accumulator[2 * j + 0x1] += hrtf[i][2 * j + 0x1] * convolutionPartitions[shiftIndex][2 * j + 0x0] + hrtf[i][2 * j + 0x0] * convolutionPartitions[shiftIndex][2 * j + 0x1];
+			accumulator[2 * j + 0x2] += hrtf[i][2 * j + 0x2] * convolutionPartitions[shiftIndex][2 * j + 0x2] - hrtf[i][2 * j + 0x3] * convolutionPartitions[shiftIndex][2 * j + 0x3];
+			accumulator[2 * j + 0x3] += hrtf[i][2 * j + 0x3] * convolutionPartitions[shiftIndex][2 * j + 0x2] + hrtf[i][2 * j + 0x2] * convolutionPartitions[shiftIndex][2 * j + 0x3];
+			accumulator[2 * j + 0x4] += hrtf[i][2 * j + 0x4] * convolutionPartitions[shiftIndex][2 * j + 0x4] - hrtf[i][2 * j + 0x5] * convolutionPartitions[shiftIndex][2 * j + 0x5];
+			accumulator[2 * j + 0x5] += hrtf[i][2 * j + 0x5] * convolutionPartitions[shiftIndex][2 * j + 0x4] + hrtf[i][2 * j + 0x4] * convolutionPartitions[shiftIndex][2 * j + 0x5];
+			accumulator[2 * j + 0x6] += hrtf[i][2 * j + 0x6] * convolutionPartitions[shiftIndex][2 * j + 0x6] - hrtf[i][2 * j + 0x7] * convolutionPartitions[shiftIndex][2 * j + 0x7];
+			accumulator[2 * j + 0x7] += hrtf[i][2 * j + 0x7] * convolutionPartitions[shiftIndex][2 * j + 0x6] + hrtf[i][2 * j + 0x6] * convolutionPartitions[shiftIndex][2 * j + 0x7];
 		}
 
 		// Decrease counter by 1 until we've reached zero, then restart
@@ -192,8 +184,8 @@ void Auricle::update(void)
 	if (leftAudio && rightAudio) // Data available on both the left and right channels
 	{
 		// Use float32 for higher precision intermediate calculations
-		arm_q15_to_float(leftAudio->data, leftAudioData, STREAM_BLOCK_SIZE);
-		arm_q15_to_float(rightAudio->data, rightAudioData, STREAM_BLOCK_SIZE);
+		arm_q15_to_float(leftAudio->data, leftAudioData, 128);
+		arm_q15_to_float(rightAudio->data, rightAudioData, 128);
 
 		for (size_t i = 0; i < PARTITION_SIZE; i++)
 		{
@@ -212,18 +204,15 @@ void Auricle::update(void)
 
 		arm_cfft_f32(&arm_cfft_sR_f32_len256, audioConvolutionBuffer, FORWARD, 1);
 
-		for (size_t i = 0; i < 512; i++)
-		{
-			convolutionPartitions[partitionIndex][i] = audioConvolutionBuffer[i];
-		}
-
+		arm_copy_f32(audioConvolutionBuffer, convolutionPartitions[partitionIndex], 512);
+		
 		convolve();
 
 		// Increase counter by 1 until we've reached the number of partitions, then reset counter to 0
 		partitionIndex = ((partitionIndex + 1) >= PARTITION_COUNT) ? 0 : (partitionIndex + 1);
 
-		arm_float_to_q15(leftAudioData, leftAudio->data, STREAM_BLOCK_SIZE);
-		arm_float_to_q15(rightAudioData, rightAudio->data, STREAM_BLOCK_SIZE);
+		arm_float_to_q15(leftAudioData, leftAudio->data, 128);
+		arm_float_to_q15(rightAudioData, rightAudio->data, 128);
 
 		// Transmit left and right audio to the output
 		transmit(leftAudio, STEREO_LEFT);

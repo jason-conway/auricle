@@ -41,11 +41,11 @@ int main(void)
 	codec.enable();
 	codec.volume(0.5);
 
-	HRIR_t ir;
-	ir.leftIR = leftIR;
-	ir.rightIR = rightIR;
+	HRIR hrir;
+	hrir.leftIR = &leftIR[0];
+	hrir.rightIR = &rightIR[0];
 	
-	if (!(convolve.begin(ir)))
+	if (!(convolve.begin(&hrir)))
 	{
 		Serial.printf(((const __FlashStringHelper *)("IR Filter Created\n")));
 	}
