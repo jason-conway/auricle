@@ -37,6 +37,10 @@ typedef struct {
 	float32_t rightTF[PARTITION_COUNT][512];
 } HRTF;
 
+/**
+ * @brief 
+ * 
+ */
 class Auricle : public AudioStream
 {
 public:
@@ -59,13 +63,14 @@ private:
 	audio_block_t *inputQueueArray[2];
 	HRTF hrtf;
 
-	int8_t convertHRIR(const HRIR *hrir);
+	int8_t convertIR(const HRIR *hrir);
 	int8_t convolve(void);
-	int8_t cmplxMultCmplx(float32_t *accumulator, float32_t (*impulseResponseFFT)[512], int16_t shiftIndex);
+	int8_t cmplxMultCmplx(const float32_t (*impulseResponseFFT)[512], int16_t shiftIndex);
 
 	bool audioReady = false;
 	uint16_t partitionIndex = 0;
 
 	float32_t convolutionPartitions[PARTITION_COUNT][512];
+	float32_t multAccum[512];
 };
 #endif

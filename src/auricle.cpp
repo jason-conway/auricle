@@ -33,7 +33,9 @@ int8_t Auricle::begin(const HRIR *hrir)
 		arm_fill_f32(0.0f, hrtf.rightTF[i], 512);
 	}
 
-	if (!(convertHRIR(hrir)))
+	arm_fill_f32(0.0f, multAccum, 512);
+
+	if (convertIR(hrir))
 	{
 		Serial.printf(((const __FlashStringHelper *)("Error Computing HRTFs\n")));
 	}
@@ -54,7 +56,7 @@ int8_t Auricle::begin(const HRIR *hrir)
  * @param hrir 
  * @return int8_t 
  */
-int8_t Auricle::convertHRIR(const HRIR *hrir)
+int8_t Auricle::convertIR(const HRIR *hrir)
 {
 	for (size_t i = 0; i < 2; i++)
 	{
@@ -95,14 +97,10 @@ int8_t Auricle::convertHRIR(const HRIR *hrir)
 /**
  * @brief 
  * 
- * @param leftImpulseResponseFFT 
- * @param rightImpulseResponseFFT 
  * @return int8_t 
  */
 int8_t Auricle::convolve(void)
-{
-	float32_t multAccum[512];
-
+{	
 	for (size_t i = 0; i < 2; i++) // Two iterations - left and right
 	{
 		arm_fill_f32(0.0f, multAccum, 512); // Clear out previous data in accumulator
@@ -111,11 +109,11 @@ int8_t Auricle::convolve(void)
 
 		if (!(i))
 		{
-			cmplxMultCmplx(multAccum, hrtf.leftTF, shiftIndex);
+			cmplxMultCmplx(hrtf.leftTF, shiftIndex);
 		}
 		else
 		{
-			cmplxMultCmplx(multAccum, hrtf.rightTF, shiftIndex);
+			cmplxMultCmplx(hrtf.rightTF, shiftIndex);
 		}
 
 		arm_cfft_f32(&arm_cfft_sR_f32_len256, multAccum, INVERSE, 1);
@@ -140,25 +138,24 @@ int8_t Auricle::convolve(void)
 /**
  * @brief Complex-by-complex multiplication of HRTF and audio input samples
  * 
- * @param accumulator 
- * @param impulseResponseFFT 
+ * @param hrtf 
  * @param shiftIndex 
  * @return int8_t 
  */
-int8_t Auricle::cmplxMultCmplx(float32_t *accumulator, float32_t (*hrtf)[512], int16_t shiftIndex)
+int8_t Auricle::cmplxMultCmplx(const float32_t (*hrtf)[512], int16_t shiftIndex)
 {
 	for (size_t i = 0; i < PARTITION_COUNT; i++)
 	{
 		for (size_t j = 0; j < 256; j = j + 4)
 		{
-			accumulator[2 * j + 0x0] += hrtf[i][2 * j + 0x0] * convolutionPartitions[shiftIndex][2 * j + 0x0] - hrtf[i][2 * j + 0x1] * convolutionPartitions[shiftIndex][2 * j + 0x1];
-			accumulator[2 * j + 0x1] += hrtf[i][2 * j + 0x1] * convolutionPartitions[shiftIndex][2 * j + 0x0] + hrtf[i][2 * j + 0x0] * convolutionPartitions[shiftIndex][2 * j + 0x1];
-			accumulator[2 * j + 0x2] += hrtf[i][2 * j + 0x2] * convolutionPartitions[shiftIndex][2 * j + 0x2] - hrtf[i][2 * j + 0x3] * convolutionPartitions[shiftIndex][2 * j + 0x3];
-			accumulator[2 * j + 0x3] += hrtf[i][2 * j + 0x3] * convolutionPartitions[shiftIndex][2 * j + 0x2] + hrtf[i][2 * j + 0x2] * convolutionPartitions[shiftIndex][2 * j + 0x3];
-			accumulator[2 * j + 0x4] += hrtf[i][2 * j + 0x4] * convolutionPartitions[shiftIndex][2 * j + 0x4] - hrtf[i][2 * j + 0x5] * convolutionPartitions[shiftIndex][2 * j + 0x5];
-			accumulator[2 * j + 0x5] += hrtf[i][2 * j + 0x5] * convolutionPartitions[shiftIndex][2 * j + 0x4] + hrtf[i][2 * j + 0x4] * convolutionPartitions[shiftIndex][2 * j + 0x5];
-			accumulator[2 * j + 0x6] += hrtf[i][2 * j + 0x6] * convolutionPartitions[shiftIndex][2 * j + 0x6] - hrtf[i][2 * j + 0x7] * convolutionPartitions[shiftIndex][2 * j + 0x7];
-			accumulator[2 * j + 0x7] += hrtf[i][2 * j + 0x7] * convolutionPartitions[shiftIndex][2 * j + 0x6] + hrtf[i][2 * j + 0x6] * convolutionPartitions[shiftIndex][2 * j + 0x7];
+			multAccum[2 * j + 0x0] += hrtf[i][2 * j + 0x0] * convolutionPartitions[shiftIndex][2 * j + 0x0] - hrtf[i][2 * j + 0x1] * convolutionPartitions[shiftIndex][2 * j + 0x1];
+			multAccum[2 * j + 0x1] += hrtf[i][2 * j + 0x1] * convolutionPartitions[shiftIndex][2 * j + 0x0] + hrtf[i][2 * j + 0x0] * convolutionPartitions[shiftIndex][2 * j + 0x1];
+			multAccum[2 * j + 0x2] += hrtf[i][2 * j + 0x2] * convolutionPartitions[shiftIndex][2 * j + 0x2] - hrtf[i][2 * j + 0x3] * convolutionPartitions[shiftIndex][2 * j + 0x3];
+			multAccum[2 * j + 0x3] += hrtf[i][2 * j + 0x3] * convolutionPartitions[shiftIndex][2 * j + 0x2] + hrtf[i][2 * j + 0x2] * convolutionPartitions[shiftIndex][2 * j + 0x3];
+			multAccum[2 * j + 0x4] += hrtf[i][2 * j + 0x4] * convolutionPartitions[shiftIndex][2 * j + 0x4] - hrtf[i][2 * j + 0x5] * convolutionPartitions[shiftIndex][2 * j + 0x5];
+			multAccum[2 * j + 0x5] += hrtf[i][2 * j + 0x5] * convolutionPartitions[shiftIndex][2 * j + 0x4] + hrtf[i][2 * j + 0x4] * convolutionPartitions[shiftIndex][2 * j + 0x5];
+			multAccum[2 * j + 0x6] += hrtf[i][2 * j + 0x6] * convolutionPartitions[shiftIndex][2 * j + 0x6] - hrtf[i][2 * j + 0x7] * convolutionPartitions[shiftIndex][2 * j + 0x7];
+			multAccum[2 * j + 0x7] += hrtf[i][2 * j + 0x7] * convolutionPartitions[shiftIndex][2 * j + 0x6] + hrtf[i][2 * j + 0x6] * convolutionPartitions[shiftIndex][2 * j + 0x7];
 		}
 
 		// Decrease counter by 1 until we've reached zero, then restart
@@ -180,6 +177,8 @@ void Auricle::update(void)
 
 	audio_block_t *leftAudio = receiveWritable(STEREO_LEFT);
 	audio_block_t *rightAudio = receiveWritable(STEREO_RIGHT);
+
+	//__disable_irq();
 
 	if (leftAudio && rightAudio) // Data available on both the left and right channels
 	{
@@ -219,6 +218,9 @@ void Auricle::update(void)
 		transmit(rightAudio, STEREO_RIGHT);
 
 		// Adios
+
+		//__enable_irq();
+
 		release(leftAudio);
 		release(rightAudio);
 	}

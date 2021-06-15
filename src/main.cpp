@@ -42,8 +42,8 @@ int main(void)
 	codec.volume(0.5);
 
 	HRIR hrir;
-	hrir.leftIR = &leftIR[0];
-	hrir.rightIR = &rightIR[0];
+	hrir.leftIR = &L45[0];
+	hrir.rightIR = &R45[0];
 	
 	if (!(convolve.begin(&hrir)))
 	{
@@ -60,9 +60,9 @@ int main(void)
 		codec.volume(masterVolume);
 
 		float32_t usage = (((AudioStream::cpu_cycles_total) + (F_CPU_ACTUAL / 128 / 44100.0f * 128 / 100)) / (F_CPU_ACTUAL / 64 / 44100.0f * 128 / 100));
-		Serial.printf("%.1f%%\n", usage);
+		Serial.printf("%.2f%%\n", usage);
 
-		delay(100);
+		delay(75);
 	}
 
 	return EXIT_SUCCESS;
