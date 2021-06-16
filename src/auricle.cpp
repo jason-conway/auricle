@@ -109,11 +109,11 @@ int8_t Auricle::convolve(void)
 
 		if (!(i))
 		{
-			cmplxMultCmplx(hrtf.leftTF, shiftIndex);
+			multiplyAccumulate(hrtf.leftTF, shiftIndex);
 		}
 		else
 		{
-			cmplxMultCmplx(hrtf.rightTF, shiftIndex);
+			multiplyAccumulate(hrtf.rightTF, shiftIndex);
 		}
 
 		arm_cfft_f32(&arm_cfft_sR_f32_len256, multAccum, INVERSE, 1);
@@ -123,11 +123,11 @@ int8_t Auricle::convolve(void)
 		{
 			if (!(i))
 			{
-				leftAudioData[j] = multAccum[2 * j] * 0.03;
+				leftAudioData[j] = multAccum[2 * j];
 			}
 			else
 			{
-				rightAudioData[j] = multAccum[2 * j + 1] * 0.03;
+				rightAudioData[j] = multAccum[2 * j + 1];
 			}
 		}
 	}
@@ -142,21 +142,13 @@ int8_t Auricle::convolve(void)
  * @param shiftIndex 
  * @return int8_t 
  */
-int8_t Auricle::cmplxMultCmplx(const float32_t (*hrtf)[512], int16_t shiftIndex)
+int8_t Auricle::multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex)
 {
 	for (size_t i = 0; i < PARTITION_COUNT; i++)
 	{
-		for (size_t j = 0; j < 256; j = j + 4)
-		{
-			multAccum[2 * j + 0x0] += hrtf[i][2 * j + 0x0] * convolutionPartitions[shiftIndex][2 * j + 0x0] - hrtf[i][2 * j + 0x1] * convolutionPartitions[shiftIndex][2 * j + 0x1];
-			multAccum[2 * j + 0x1] += hrtf[i][2 * j + 0x1] * convolutionPartitions[shiftIndex][2 * j + 0x0] + hrtf[i][2 * j + 0x0] * convolutionPartitions[shiftIndex][2 * j + 0x1];
-			multAccum[2 * j + 0x2] += hrtf[i][2 * j + 0x2] * convolutionPartitions[shiftIndex][2 * j + 0x2] - hrtf[i][2 * j + 0x3] * convolutionPartitions[shiftIndex][2 * j + 0x3];
-			multAccum[2 * j + 0x3] += hrtf[i][2 * j + 0x3] * convolutionPartitions[shiftIndex][2 * j + 0x2] + hrtf[i][2 * j + 0x2] * convolutionPartitions[shiftIndex][2 * j + 0x3];
-			multAccum[2 * j + 0x4] += hrtf[i][2 * j + 0x4] * convolutionPartitions[shiftIndex][2 * j + 0x4] - hrtf[i][2 * j + 0x5] * convolutionPartitions[shiftIndex][2 * j + 0x5];
-			multAccum[2 * j + 0x5] += hrtf[i][2 * j + 0x5] * convolutionPartitions[shiftIndex][2 * j + 0x4] + hrtf[i][2 * j + 0x4] * convolutionPartitions[shiftIndex][2 * j + 0x5];
-			multAccum[2 * j + 0x6] += hrtf[i][2 * j + 0x6] * convolutionPartitions[shiftIndex][2 * j + 0x6] - hrtf[i][2 * j + 0x7] * convolutionPartitions[shiftIndex][2 * j + 0x7];
-			multAccum[2 * j + 0x7] += hrtf[i][2 * j + 0x7] * convolutionPartitions[shiftIndex][2 * j + 0x6] + hrtf[i][2 * j + 0x6] * convolutionPartitions[shiftIndex][2 * j + 0x7];
-		}
+		arm_cmplx_mult_cmplx_f32(convolutionPartitions[shiftIndex], hrtf[i], cmplxProduct, 256);
+
+		arm_add_f32(multAccum, cmplxProduct, multAccum, 512);
 
 		// Decrease counter by 1 until we've reached zero, then restart
 		shiftIndex = ((shiftIndex - 1) < 0) ? (PARTITION_COUNT - 1) : (shiftIndex - 1);

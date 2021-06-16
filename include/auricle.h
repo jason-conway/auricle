@@ -27,12 +27,12 @@
 #define HRTF_COMPUTATION_SUCCESS 0
 #define HRTF_COMPUTATION_FAILURE -1
 
-typedef struct {
+typedef struct HRIR {
 	float32_t *leftIR;
 	float32_t *rightIR;
 } HRIR;
 
-typedef struct {
+typedef struct HRTF {
 	float32_t leftTF[PARTITION_COUNT][512];
 	float32_t rightTF[PARTITION_COUNT][512];
 } HRTF;
@@ -65,12 +65,13 @@ private:
 
 	int8_t convertIR(const HRIR *hrir);
 	int8_t convolve(void);
-	int8_t cmplxMultCmplx(const float32_t (*impulseResponseFFT)[512], int16_t shiftIndex);
+	int8_t multiplyAccumulate(float32_t (*impulseResponseFFT)[512], int16_t shiftIndex);
 
 	bool audioReady = false;
 	uint16_t partitionIndex = 0;
 
 	float32_t convolutionPartitions[PARTITION_COUNT][512];
 	float32_t multAccum[512];
+	float32_t cmplxProduct[512];
 };
 #endif
