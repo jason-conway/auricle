@@ -34,6 +34,11 @@ int8_t Auricle::begin(const HRIR *hrir)
 	}
 
 	arm_fill_f32(0.0f, multAccum, 512);
+	arm_fill_f32(0.0f, audioConvolutionBuffer, 512);
+	arm_fill_f32(0.0f, leftAudioData, 128);
+	arm_fill_f32(0.0f, leftAudioPrevSample, 128);
+	arm_fill_f32(0.0f, rightAudioData, 128);
+	arm_fill_f32(0.0f, rightAudioPrevSample, 128);
 
 	if (convertIR(hrir))
 	{
