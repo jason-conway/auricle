@@ -11,12 +11,7 @@
 
 #include "auricle.h"
 
-float32_t __attribute__((section(".dmabuffers"), used)) audioConvolutionBuffer[512];
-
-float32_t __attribute__((section(".dmabuffers"), used)) leftAudioData[128];		   // Left channel audio data as floating point vector
-float32_t __attribute__((section(".dmabuffers"), used)) leftAudioPrevSample[128];  // Left channel N-1
-float32_t __attribute__((section(".dmabuffers"), used)) rightAudioData[128];	   // Right channel audio data as floating point vector
-float32_t __attribute__((section(".dmabuffers"), used)) rightAudioPrevSample[128]; // Right channel N-1
+//float32_t __attribute__ ((section(".dmabuffers"), used)) convolutionPartitions[PARTITION_COUNT][512];
 
 /**
  * @brief 
@@ -136,7 +131,6 @@ int8_t Auricle::convolve(void)
 			}
 		}
 	}
-
 	return 0;
 }
 
@@ -175,10 +169,11 @@ void Auricle::update(void)
 	audio_block_t *leftAudio = receiveWritable(STEREO_LEFT);
 	audio_block_t *rightAudio = receiveWritable(STEREO_RIGHT);
 
-	//__disable_irq();
-
 	if (leftAudio && rightAudio) // Data available on both the left and right channels
 	{
+		// Disable interrupts while computing the convolution 
+		__asm__ volatile("CPSID i":::"memory");
+
 		// Use float32 for higher precision intermediate calculations
 		arm_q15_to_float(leftAudio->data, leftAudioData, 128);
 		arm_q15_to_float(rightAudio->data, rightAudioData, 128);
@@ -213,10 +208,9 @@ void Auricle::update(void)
 		// Transmit left and right audio to the output
 		transmit(leftAudio, STEREO_LEFT);
 		transmit(rightAudio, STEREO_RIGHT);
-
-		// Adios
-
-		//__enable_irq();
+		
+		// Re-enable interrupts
+		__asm__ volatile("CPSIE i":::"memory");
 
 		release(leftAudio);
 		release(rightAudio);

@@ -16,7 +16,7 @@
 Auricle convolve;
 
 AudioInputUSB stereoIn;
-AudioOutputSPDIF3 stereoOut;
+AudioOutputSPDIF stereoOut;
 
 AudioConnection leftInConv(stereoIn, convolve.STEREO_LEFT, convolve, convolve.STEREO_LEFT);
 AudioConnection rightInConv(stereoIn, convolve.STEREO_RIGHT, convolve, convolve.STEREO_RIGHT);
@@ -28,7 +28,8 @@ int main(void)
 	Serial.begin(115200);
 	while (!(Serial))
 	{
-		delay(500);
+		yield();
+		delay(100);
 	}
 	
 	Serial.printf(((const __FlashStringHelper *)("Serial connected\n")));
@@ -37,8 +38,8 @@ int main(void)
 	AudioStream::initialize_memory(audioMemory, 70);
 
 	HRIR hrir;
-	hrir.leftIR = &L135[0];
-	hrir.rightIR = &R135[0];
+	hrir.leftIR = &L225[0];
+	hrir.rightIR = &R225[0];
 	
 	if (!(convolve.begin(&hrir)))
 	{
@@ -47,10 +48,9 @@ int main(void)
 
 	while (1)
 	{
-		// float32_t usage = (((AudioStream::cpu_cycles_total) + (F_CPU_ACTUAL / 128 / 44100.0f * 128 / 100)) / (F_CPU_ACTUAL / 64 / 44100.0f * 128 / 100));
-		// Serial.printf("%.2f%%\n", usage);
-		//yield();
-		delay(2000);
+		float32_t usage = (((AudioStream::cpu_cycles_total) + (F_CPU_ACTUAL / 128 / 44100.0f * 128 / 100)) / (F_CPU_ACTUAL / 64 / 44100.0f * 128 / 100));
+		Serial.printf("%.2f%%\n", usage);
+		delay(1000);
 	}
 
 	return EXIT_SUCCESS;

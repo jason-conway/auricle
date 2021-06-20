@@ -27,15 +27,11 @@
 #define HRTF_COMPUTATION_SUCCESS 0
 #define HRTF_COMPUTATION_FAILURE -1
 
-typedef struct HRIR {
+typedef struct HRIR
+{
 	float32_t *leftIR;
 	float32_t *rightIR;
 } HRIR;
-
-typedef struct HRTF {
-	float32_t leftTF[PARTITION_COUNT][512];
-	float32_t rightTF[PARTITION_COUNT][512];
-} HRTF;
 
 /**
  * @brief 
@@ -61,6 +57,13 @@ public:
 
 private:
 	audio_block_t *inputQueueArray[2];
+
+	typedef struct HRTF
+	{
+		float32_t leftTF[PARTITION_COUNT][512];
+		float32_t rightTF[PARTITION_COUNT][512];
+	} HRTF;
+
 	HRTF hrtf;
 
 	int8_t convertIR(const HRIR *hrir);
@@ -69,8 +72,13 @@ private:
 
 	bool audioReady = false;
 	uint16_t partitionIndex = 0;
-
 	float32_t convolutionPartitions[PARTITION_COUNT][512];
+	float32_t audioConvolutionBuffer[512];
+
+	float32_t leftAudioData[128];		 // Left channel audio data as floating point vector
+	float32_t leftAudioPrevSample[128];	 // Left channel N-1
+	float32_t rightAudioData[128];		 // Right channel audio data as floating point vector
+	float32_t rightAudioPrevSample[128]; // Right channel N-1
 	float32_t multAccum[512];
 	float32_t cmplxProduct[512];
 };
