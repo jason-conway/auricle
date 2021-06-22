@@ -1,7 +1,7 @@
 /**
  * @file auricle.cpp
  * @author Jason Conway (jpc@jasonconway.dev)
- * @brief Real-Time Uniformly-Partitioned Convolution 
+ * @brief Spatial Audio for the Arm Cortex-M7
  * @version 0.1
  * @date 2021-05-04
  * 
@@ -19,7 +19,7 @@
  * @param hrir 
  * @return int8_t 
  */
-int8_t Auricle::begin(const HRIR *hrir)
+int8_t __attribute__((section(".flashmem"))) Auricle::begin(const HRIR *hrir)
 {
 	for (size_t i = 0; i < PARTITION_COUNT; i++)
 	{
@@ -40,9 +40,9 @@ int8_t Auricle::begin(const HRIR *hrir)
 		Serial.printf(((const __FlashStringHelper *)("Error Computing HRTFs\n")));
 	}
 
-	audioReady = true;
-
 	Serial.printf(((const __FlashStringHelper *)("HRTFs Computed\n")));
+
+	audioReady = true;
 
 	return 0;
 }
@@ -56,8 +56,11 @@ int8_t Auricle::begin(const HRIR *hrir)
  * @param hrir 
  * @return int8_t 
  */
-int8_t Auricle::convertIR(const HRIR *hrir)
+
+int8_t __attribute__((section(".flashmem"))) Auricle::convertIR(const HRIR *hrir) 
 {
+	audioReady = false;
+
 	for (size_t i = 0; i < 2; i++)
 	{
 		float32_t impulsePartitionBuffer[512];
@@ -90,6 +93,8 @@ int8_t Auricle::convertIR(const HRIR *hrir)
 			}
 		}
 	}
+
+	audioReady = true;
 
 	return 0;
 }

@@ -46,8 +46,8 @@ public:
 	}
 
 	int8_t begin(const HRIR *hrir);
-
 	virtual void update(void);
+	int8_t convertIR(const HRIR *hrir);
 
 	enum Channels
 	{
@@ -66,11 +66,12 @@ private:
 
 	HRTF hrtf;
 
-	int8_t convertIR(const HRIR *hrir);
+	//int8_t convertIR(const HRIR *hrir);
 	int8_t convolve(void);
-	int8_t multiplyAccumulate(float32_t (*impulseResponseFFT)[512], int16_t shiftIndex);
+	int8_t multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex);
 
-	bool audioReady = false;
+	volatile bool audioReady = false;
+	
 	uint16_t partitionIndex = 0;
 	float32_t convolutionPartitions[PARTITION_COUNT][512];
 	float32_t audioConvolutionBuffer[512];
@@ -82,4 +83,5 @@ private:
 	float32_t multAccum[512];
 	float32_t cmplxProduct[512];
 };
+
 #endif
