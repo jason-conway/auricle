@@ -1,7 +1,7 @@
 /**
  * @file auricle.h
  * @author Jason Conway (jpc@jasonconway.dev)
- * @brief Uniformly-Partitioned Convolution 
+ * @brief Spatial Audio for Arm Cortex-M7
  * @version 0.1
  * @date 2021-05-04
  * 
@@ -12,76 +12,14 @@
 #ifndef AURICLE_H
 #define AURICLE_H
 
-#include <Audio.h>
-#include <arm_math.h>
-#include <arm_const_structs.h>
+#include <WProgram.h>
+#include <pins_arduino.h>
 
-#define PARTITION_SIZE 128
-#define PARTITION_COUNT 64
+#define IR_SAMPLES 8192
 
-// IFFT Flags
-#define FORWARD 0
-#define INVERSE 1
-
-// Return Values
-#define HRTF_COMPUTATION_SUCCESS 0
-#define HRTF_COMPUTATION_FAILURE -1
-
-typedef struct HRIR
-{
-	float32_t *leftIR;
-	float32_t *rightIR;
-} HRIR;
-
-/**
- * @brief 
- * 
- */
-class Auricle : public AudioStream
-{
-public:
-	Auricle(void) : AudioStream(2, inputQueueArray)
-	{
-		// Constructor
-	}
-
-	int8_t begin(const HRIR *hrir);
-	virtual void update(void);
-	int8_t convertIR(const HRIR *hrir);
-
-	enum Channels
-	{
-		STEREO_LEFT,
-		STEREO_RIGHT
-	};
-
-private:
-	audio_block_t *inputQueueArray[2];
-
-	typedef struct HRTF
-	{
-		float32_t leftTF[PARTITION_COUNT][512];
-		float32_t rightTF[PARTITION_COUNT][512];
-	} HRTF;
-
-	HRTF hrtf;
-
-	//int8_t convertIR(const HRIR *hrir);
-	int8_t convolve(void);
-	int8_t multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex);
-
-	volatile bool audioReady = false;
-	
-	uint16_t partitionIndex = 0;
-	float32_t convolutionPartitions[PARTITION_COUNT][512];
-	float32_t audioConvolutionBuffer[512];
-
-	float32_t leftAudioData[128];		 // Left channel audio data as floating point vector
-	float32_t leftAudioPrevSample[128];	 // Left channel N-1
-	float32_t rightAudioData[128];		 // Right channel audio data as floating point vector
-	float32_t rightAudioPrevSample[128]; // Right channel N-1
-	float32_t multAccum[512];
-	float32_t cmplxProduct[512];
-};
+// #define MANUFACTURER_NAME	{'J','A','S','O','N','C','O','N','W','A','Y'}
+// #define MANUFACTURER_NAME_LEN	11
+// #define PRODUCT_NAME	{'a', 'u', 'r', 'i', 'c', 'l', 'e'}
+// #define PRODUCT_NAME_LEN	7
 
 #endif

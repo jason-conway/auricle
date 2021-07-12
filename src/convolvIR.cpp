@@ -1,5 +1,5 @@
 /**
- * @file auricle.cpp
+ * @file convolvIR.cpp
  * @author Jason Conway (jpc@jasonconway.dev)
  * @brief Spatial Audio for the Arm Cortex-M7
  * @version 0.1
@@ -9,7 +9,7 @@
  * 
  */
 
-#include "auricle.h"
+#include "convolvIR.h"
 
 //float32_t __attribute__ ((section(".dmabuffers"), used)) convolutionPartitions[PARTITION_COUNT][512];
 
@@ -19,7 +19,7 @@
  * @param hrir 
  * @return int8_t 
  */
-int8_t __attribute__((section(".flashmem"))) Auricle::begin(const HRIR *hrir)
+int8_t __attribute__((section(".flashmem"))) convolvIR::begin(const HRIR *hrir)
 {
 	for (size_t i = 0; i < PARTITION_COUNT; i++)
 	{
@@ -37,10 +37,10 @@ int8_t __attribute__((section(".flashmem"))) Auricle::begin(const HRIR *hrir)
 
 	if (convertIR(hrir))
 	{
-		Serial.printf(((const __FlashStringHelper *)("Error Computing HRTFs\n")));
+		Serial.printf("Error Computing HRTFs\n");
 	}
 
-	Serial.printf(((const __FlashStringHelper *)("HRTFs Computed\n")));
+	Serial.printf("HRTFs Computed\n");
 
 	audioReady = true;
 
@@ -57,7 +57,7 @@ int8_t __attribute__((section(".flashmem"))) Auricle::begin(const HRIR *hrir)
  * @return int8_t 
  */
 
-int8_t __attribute__((section(".flashmem"))) Auricle::convertIR(const HRIR *hrir) 
+int8_t __attribute__((section(".flashmem"))) convolvIR::convertIR(const HRIR *hrir) 
 {
 	audioReady = false;
 
@@ -104,7 +104,7 @@ int8_t __attribute__((section(".flashmem"))) Auricle::convertIR(const HRIR *hrir
  * 
  * @return int8_t 
  */
-int8_t Auricle::convolve(void)
+int8_t convolvIR::convolve(void)
 {	
 	for (size_t i = 0; i < 2; i++) // Two iterations - left and right
 	{
@@ -146,7 +146,7 @@ int8_t Auricle::convolve(void)
  * @param shiftIndex 
  * @return int8_t 
  */
-int8_t Auricle::multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex)
+int8_t convolvIR::multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex)
 {
 	for (size_t i = 0; i < PARTITION_COUNT; i++)
 	{
@@ -164,7 +164,7 @@ int8_t Auricle::multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex)
  * @brief Updates every 128 samples / 2.9 ms
  * 
  */
-void Auricle::update(void)
+void convolvIR::update(void)
 {
 	if (!(audioReady)) // Impulse response hasn't been processed yet
 	{
