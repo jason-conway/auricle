@@ -33,21 +33,14 @@ typedef struct HRIR
 	float32_t *rightIR;
 } HRIR;
 
-/**
- * @brief 
- * 
- */
 class convolvIR : public AudioStream
 {
 public:
-	convolvIR(void) : AudioStream(2, inputQueueArray)
-	{
-		// Constructor
-	}
+	convolvIR(void);
 
-	int8_t begin(const HRIR *hrir);
-	virtual void update(void);
 	int8_t convertIR(const HRIR *hrir);
+
+	virtual void update(void);
 
 	enum Channels
 	{
@@ -66,7 +59,7 @@ private:
 
 	HRTF hrtf;
 
-	//int8_t convertIR(const HRIR *hrir);
+	void init(void);
 	int8_t convolve(void);
 	int8_t multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex);
 

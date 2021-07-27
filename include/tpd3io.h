@@ -18,13 +18,10 @@
 #define D3SR_POW_OFF 0
 
 
-
-
 class TPD3IO
 {
 public:
-
-
+    TPD3IO();
 
     
     
@@ -51,7 +48,10 @@ private:
         uint8_t pllLock : 1;
     };
 
-    
+    void init(void);
+
+    void powerOn(void);
+    void switchInput(void);
     
 };
 

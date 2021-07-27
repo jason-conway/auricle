@@ -14,13 +14,23 @@
 //float32_t __attribute__ ((section(".dmabuffers"), used)) convolutionPartitions[PARTITION_COUNT][512];
 
 /**
+ * @brief Construct a new convolvIR::convolvIR object
+ * 
+ */
+convolvIR::convolvIR(void) : AudioStream(2, inputQueueArray)
+{
+	init();
+}
+
+/**
  * @brief 
  * 
- * @param hrir 
- * @return int8_t 
  */
-int8_t __attribute__((section(".flashmem"))) convolvIR::begin(const HRIR *hrir)
+void __attribute__((section(".flashmem"))) convolvIR::init(void)
 {
+	pinMode(0, OUTPUT);
+    pinMode(1, OUTPUT);
+
 	for (size_t i = 0; i < PARTITION_COUNT; i++)
 	{
 		arm_fill_f32(0.0f, convolutionPartitions[i], 512);
@@ -34,17 +44,6 @@ int8_t __attribute__((section(".flashmem"))) convolvIR::begin(const HRIR *hrir)
 	arm_fill_f32(0.0f, leftAudioPrevSample, 128);
 	arm_fill_f32(0.0f, rightAudioData, 128);
 	arm_fill_f32(0.0f, rightAudioPrevSample, 128);
-
-	if (convertIR(hrir))
-	{
-		Serial.printf("Error Computing HRTFs\n");
-	}
-
-	Serial.printf("HRTFs Computed\n");
-
-	audioReady = true;
-
-	return 0;
 }
 
 /**
@@ -56,7 +55,6 @@ int8_t __attribute__((section(".flashmem"))) convolvIR::begin(const HRIR *hrir)
  * @param hrir 
  * @return int8_t 
  */
-
 int8_t __attribute__((section(".flashmem"))) convolvIR::convertIR(const HRIR *hrir) 
 {
 	audioReady = false;
@@ -146,7 +144,7 @@ int8_t convolvIR::convolve(void)
  * @param shiftIndex 
  * @return int8_t 
  */
-int8_t convolvIR::multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex)
+int8_t __attribute__ ((optimize("-O1"))) convolvIR::multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex)
 {
 	for (size_t i = 0; i < PARTITION_COUNT; i++)
 	{
@@ -166,11 +164,14 @@ int8_t convolvIR::multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex)
  */
 void convolvIR::update(void)
 {
+	
 	if (!(audioReady)) // Impulse response hasn't been processed yet
 	{
 		return;
 	}
 
+	digitalWriteFast(0, 1);
+	
 	audio_block_t *leftAudio = receiveWritable(STEREO_LEFT);
 	audio_block_t *rightAudio = receiveWritable(STEREO_RIGHT);
 
@@ -220,4 +221,5 @@ void convolvIR::update(void)
 		release(leftAudio);
 		release(rightAudio);
 	}
+	digitalWriteFast(0, 0);
 }

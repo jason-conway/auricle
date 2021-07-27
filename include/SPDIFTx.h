@@ -17,12 +17,9 @@
 #include <DMAChannel.h>
 
 #define SPDIF_DPLL_GAIN 0b11
-#define SPDIF_CLK_PRED_DIV 7
-#define SPDIF_CLK_PODF_DIV 0
 #define SPDIF_LOOP_DIV 28
 #define SPDIF_PLL_NUM 2240
 #define SPDIF_PLL_DENOM 10000
-
 #define SPDIF_STC_DIV 29
 
 #define CCM_CDCR_SPDIF0_CLK_MASK (CCM_CDCDR_SPDIF0_CLK_SEL_MASK | CCM_CDCDR_SPDIF0_CLK_PRED_MASK | CCM_CDCDR_SPDIF0_CLK_PODF_MASK)
@@ -32,27 +29,30 @@
 
 #define GPIO_AD_B1_02_MUX_MODE_SPDIF 0b011
 
+inline void dmaCopyAudio(int32_t *pTx, const int32_t *pTxStop, const int16_t *leftAudioData, const int16_t *rightAudioData);
 
 class SPDIFTx : public AudioStream
 {
 public:
-	SPDIFTx(void) : AudioStream(2, inputQueueArray)
-	{
-		begin();
-	}
-
+	SPDIFTx(void);
 	virtual void update(void);
-
-protected:
-	static void configureSpdifRegisters(void);
-	static void configureDMA(void);
-	static void dmaISR(void);
-	static DMAChannel eDMA;
 
 private:
 	audio_block_t *inputQueueArray[2];
+	static audio_block_t *leftAudioMSB;
+	static audio_block_t *rightAudioMSB;
+	static audio_block_t *leftAudioLSB;
+	static audio_block_t *rightAudioLSB;
+	static audio_block_t silentAudio;
 
-	void begin(void);
+	static DMAChannel eDMA;
+	uint8_t dmaChannel;
+
+	void init(void);		
+	static void configureSpdifRegisters(void);
+	static uint8_t configureDMA(void);
+	static void dmaISR(void);	
+	static uint32_t getTxOffset(uint32_t txSourceAddress, uint32_t sourceBufferSize);
 
 	enum Channels
 	{
@@ -60,12 +60,6 @@ private:
 		STEREO_RIGHT
 	};
 
-	static audio_block_t *leftAudioMSB;
-	static audio_block_t *rightAudioMSB;
-	static audio_block_t *leftAudioLSB;
-	static audio_block_t *rightAudioLSB;
-
-	static audio_block_t silentAudio;
 };
 
 #endif

@@ -11,3 +11,12 @@
 
 #include "tpd3io.h"
 
+TPD3IO::TPD3IO(void)
+{
+    init();
+}
+
+void TPD3IO::init(void)
+{
+
+}
