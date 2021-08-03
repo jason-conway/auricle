@@ -11,7 +11,7 @@
 
 #include "convolvIR.h"
 
-//float32_t __attribute__ ((section(".dmabuffers"), used)) convolutionPartitions[PARTITION_COUNT][512];
+float32_t __attribute__ ((section(".dmabuffers"), used)) __attribute__((aligned(32))) convolvIR::convolutionPartitions[PARTITION_COUNT][512];
 
 /**
  * @brief Construct a new convolvIR::convolvIR object

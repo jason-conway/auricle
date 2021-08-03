@@ -76,7 +76,6 @@ void SPDIFTx::dmaISR(void)
 
     // Clear Interrupt Request Register (pg 138)
     DMA_CINT = eDMA.channel; // Disable interrupt request for this DMA channel
-    
 
     int32_t *txBaseAddress = &txBuffer[0] + txOffset;
     const int32_t *txStopAddress = &txBuffer[0] + txOffset + 256;
