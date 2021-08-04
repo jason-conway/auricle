@@ -11,8 +11,6 @@
 
 #include "convolvIR.h"
 
-float32_t __attribute__ ((section(".dmabuffers"), used)) __attribute__((aligned(32))) convolvIR::convolutionPartitions[PARTITION_COUNT][512];
-
 /**
  * @brief Construct a new convolvIR::convolvIR object
  * 
@@ -28,9 +26,6 @@ convolvIR::convolvIR(void) : AudioStream(2, inputQueueArray)
  */
 void __attribute__((section(".flashmem"))) convolvIR::init(void)
 {
-	pinMode(0, OUTPUT);
-    pinMode(1, OUTPUT);
-
 	for (size_t i = 0; i < PARTITION_COUNT; i++)
 	{
 		arm_fill_f32(0.0f, convolutionPartitions[i], 512);
@@ -169,8 +164,6 @@ void convolvIR::update(void)
 	{
 		return;
 	}
-
-	digitalWriteFast(0, 1);
 	
 	audio_block_t *leftAudio = receiveWritable(STEREO_LEFT);
 	audio_block_t *rightAudio = receiveWritable(STEREO_RIGHT);
@@ -221,5 +214,4 @@ void convolvIR::update(void)
 		release(leftAudio);
 		release(rightAudio);
 	}
-	digitalWriteFast(0, 0);
 }

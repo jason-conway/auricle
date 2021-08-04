@@ -84,8 +84,7 @@ private:
     D3Status d3status;
 
     void init(void);
-    void togglePower(void);
-    void switchInput(void);
+
     uint8_t readGPIO(void);
     uint8_t pllStatus(void);
     uint8_t checkPower(void);
@@ -93,6 +92,8 @@ private:
     uint8_t checkSigOPT(void);
     uint8_t checkSigRCA(void);
     uint8_t checkSigBNC(void);
+    void togglePower(void);
+    void switchInput(void);
 
 };
 

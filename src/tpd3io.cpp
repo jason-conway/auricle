@@ -24,7 +24,7 @@ TPD3IO::TPD3IO(void)
  * @brief Configure GPIO for interfacing with the D3
  * 
  */
-void TPD3IO::init(void)
+void __attribute__((section(".flashmem"))) TPD3IO::init(void)
 {
     // Outputs on GPIO6, inputs on GPIO9
     volatile uint32_t *gpio_pow_reg = &GPIO_DR_SIG_OUT;
@@ -81,7 +81,7 @@ void TPD3IO::init(void)
  * @brief Write SIG_POW HIGH for 50ms to toggle power on the D3 board
  * 
  */
-void TPD3IO::togglePower(void)
+void __attribute__((section(".flashmem"))) TPD3IO::togglePower(void)
 {
     GPIO6_DR_SET = GPIO_MASK_SIG_POW;
     delayMicroseconds(50000);
@@ -93,7 +93,7 @@ void TPD3IO::togglePower(void)
  * @brief Write SIG_SEL HIGH for 50ms switch inputs on the D3 board
  * 
  */
-void TPD3IO::switchInput(void)
+void __attribute__((section(".flashmem"))) TPD3IO::switchInput(void)
 {
     GPIO6_DR_SET = GPIO_MASK_SIG_SEL;
     delayMicroseconds(50000);
@@ -105,7 +105,7 @@ void TPD3IO::switchInput(void)
  * 
  * @return uint8_t 
  */
-uint8_t TPD3IO::checkSigUSB(void)
+uint8_t __attribute__((section(".flashmem"))) TPD3IO::checkSigUSB(void)
 {
     if (GPIO_PSR_SIG_IN & GPIO_MASK_SIG_USB)
     {
@@ -120,7 +120,7 @@ uint8_t TPD3IO::checkSigUSB(void)
  * 
  * @return uint8_t 
  */
-uint8_t TPD3IO::checkSigOPT(void)
+uint8_t __attribute__((section(".flashmem"))) TPD3IO::checkSigOPT(void)
 {
     if (GPIO_PSR_SIG_IN & GPIO_MASK_SIG_OPT)
     {
@@ -135,7 +135,7 @@ uint8_t TPD3IO::checkSigOPT(void)
  * 
  * @return uint8_t 
  */
-uint8_t TPD3IO::checkSigRCA(void)
+uint8_t __attribute__((section(".flashmem"))) TPD3IO::checkSigRCA(void)
 {
     if (GPIO_PSR_SIG_IN & GPIO_MASK_SIG_RCA)
     {
@@ -150,7 +150,7 @@ uint8_t TPD3IO::checkSigRCA(void)
  * 
  * @return uint8_t 
  */
-uint8_t TPD3IO::checkSigBNC(void)
+uint8_t __attribute__((section(".flashmem"))) TPD3IO::checkSigBNC(void)
 {
     if (GPIO_PSR_SIG_IN & GPIO_MASK_SIG_BNC)
     {
@@ -165,7 +165,7 @@ uint8_t TPD3IO::checkSigBNC(void)
  * 
  * @return uint8_t 
  */
-uint8_t TPD3IO::pllStatus(void)
+uint8_t __attribute__((section(".flashmem"))) TPD3IO::pllStatus(void)
 {
     if (d3status.mode == OPT)
     {
@@ -173,7 +173,7 @@ uint8_t TPD3IO::pllStatus(void)
         {
             uint32_t startingCycleCount = ARM_DWT_CYCCNT;
 
-            if (!(checkSigOPT)) // SIG_OPT remains HIGH >= 2 seconds
+            if (!(checkSigOPT())) // SIG_OPT remains HIGH >= 2 seconds
             {
                 return D3_PLL_NOT_LOCKED;
             }

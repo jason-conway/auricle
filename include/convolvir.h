@@ -17,7 +17,7 @@
 #include <arm_const_structs.h>
 
 #define PARTITION_SIZE 128
-#define PARTITION_COUNT 72
+#define PARTITION_COUNT 64
 
 // IFFT Flags
 #define FORWARD 0
@@ -66,7 +66,7 @@ private:
 	volatile bool audioReady = false;
 	
 	uint16_t partitionIndex = 0;
-	static float32_t convolutionPartitions[PARTITION_COUNT][512];
+	float32_t convolutionPartitions[PARTITION_COUNT][512];
 	float32_t audioConvolutionBuffer[512];
 
 	float32_t leftAudioData[128];		 // Left channel audio data as floating point vector
