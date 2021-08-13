@@ -1,5 +1,5 @@
 /**
- * @file CONVOLVIR.cpp
+ * @file convolvIR.cpp
  * @author Jason Conway (jpc@jasonconway.dev)
  * @brief Spatial Audio for the Arm Cortex-M7
  * @version 0.1
@@ -154,13 +154,6 @@ void CONVOLVIR::setPassthrough(bool passthrough)
 	CONVOLVIR::audioPassthrough = passthrough;
 }
 
-void CONVOLVIR::setAngle(uint16_t sourceAngle)
-{
-	uint16_t index = floor(sourceAngle / 45); // Change later
-	HRIR hrir;
-	hrir.leftIR = IR_LUT[index][0];
-	hrir.rightIR = IR_LUT[index][1];
-}
 /**
  * @brief Updates every 128 samples / 2.9 ms
  * 

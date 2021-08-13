@@ -10,7 +10,6 @@
  */
 
 #include "ash.h"
-#include "IR.h"
 #include "convolvIR.h"
 
 USCP uscp;
@@ -52,7 +51,6 @@ void ASH::setAngle(void *)
 	{
 		uint16_t angle = atoi(arg);
 		SerialUSB.printf("New angle: %d degrees\n", angle);
-		CONVOLVIR::setAngle(angle);
 	}
 }
 

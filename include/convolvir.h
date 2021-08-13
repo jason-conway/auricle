@@ -1,5 +1,5 @@
 /**
- * @file convolveIR.h
+ * @file convolvIR.h
  * @author Jason Conway (jpc@jasonconway.dev)
  * @brief Spatial Audio for Arm Cortex-M7
  * @version 0.1
@@ -15,7 +15,6 @@
 #include <Audio.h>
 #include <arm_math.h>
 #include <arm_const_structs.h>
-#include "IR.h"
 
 #define PARTITION_SIZE 128
 #define PARTITION_COUNT 64
@@ -48,7 +47,6 @@ public:
 
 	virtual void update(void);
 	static void setPassthrough(bool passthrough);
-	static void setAngle(uint16_t angle);
 
 private:
 	audio_block_t *inputQueueArray[2];
