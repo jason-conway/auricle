@@ -58,6 +58,9 @@ class TPD3IO
 {
 public:
     TPD3IO(void);
+    void togglePower(void);
+    void switchInput(void);
+    void currentStatus(void);
 
 private:
     enum D3InputMode
@@ -86,14 +89,13 @@ private:
     void init(void);
 
     uint8_t readGPIO(void);
+    void checkAll(void);
     uint8_t pllStatus(void);
     uint8_t checkPower(void);
     uint8_t checkSigUSB(void);
     uint8_t checkSigOPT(void);
     uint8_t checkSigRCA(void);
     uint8_t checkSigBNC(void);
-    void togglePower(void);
-    void switchInput(void);
 
 };
 

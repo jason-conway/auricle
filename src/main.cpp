@@ -14,19 +14,23 @@
 #include "SPDIFTx.h"
 #include "IR.h"
 #include "tpd3io.h"
+#include "uscp.h"
+#include "ash.h"
 
 AudioInputUSB stereoIn;
 SPDIFTx stereoOut;
-convolvIR convolve;
-TPD3IO d3;
+CONVOLVIR convolvIR;
+
+ASH ash;
 
 // AudioConnection leftPassThrough(stereoIn, 0, stereoOut, 0);
 // AudioConnection rightPassThrough(stereoIn, 1, stereoOut, 1);
 
-AudioConnection leftInConv(stereoIn, convolve.STEREO_LEFT, convolve, convolve.STEREO_LEFT);
-AudioConnection rightInConv(stereoIn, convolve.STEREO_RIGHT, convolve, convolve.STEREO_RIGHT);
-AudioConnection leftOutConv(convolve, convolve.STEREO_LEFT, stereoOut, convolve.STEREO_LEFT);
-AudioConnection rightOutConv(convolve, convolve.STEREO_RIGHT, stereoOut, convolve.STEREO_RIGHT);
+AudioConnection leftInConv(stereoIn, leftChannel, convolvIR, leftChannel);
+AudioConnection rightInConv(stereoIn, rightChannel, convolvIR, rightChannel);
+AudioConnection leftOutConv(convolvIR, leftChannel, stereoOut, leftChannel);
+AudioConnection rightOutConv(convolvIR, rightChannel, stereoOut, rightChannel);
+
 
 int main(void)
 {
@@ -37,25 +41,19 @@ int main(void)
 		delay(100);
 	}
 
-	Serial.printf("Serial connected\n");
-	
-	
+
+	SerialUSB.printf("Serial connected\n");
+
 	AudioMemory(20);
-
-	HRIR hrir;
-	hrir.leftIR = &L0[0];
-	hrir.rightIR = &R0[0];
-
-	if (!(convolve.convertIR(&hrir)))
-	{
-		Serial.printf("IR Filter Created\n");
-	}
-
+	
 	while (1)
-	{	
-		float32_t usage = AudioProcessorUsage();
-		Serial.printf("%.2f%%\n", usage);
-		delay(150);
+	{
+		// float32_t usage = AudioProcessorUsage();
+		// Serial.printf("%.2f%%\n", usage);
+
+		ash.execLoop();
+		yield();
+		delay(100);
 	}
 
 	return EXIT_SUCCESS;

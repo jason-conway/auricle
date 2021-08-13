@@ -15,7 +15,9 @@
 #include <WProgram.h>
 #include <pins_arduino.h>
 
+
 #define IR_SAMPLES 8192
+
 
 // #define MANUFACTURER_NAME	{'J','A','S','O','N','C','O','N','W','A','Y'}
 // #define MANUFACTURER_NAME_LEN	11

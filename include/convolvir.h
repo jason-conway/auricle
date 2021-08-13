@@ -1,5 +1,5 @@
 /**
- * @file convolvIR.h
+ * @file convolveIR.h
  * @author Jason Conway (jpc@jasonconway.dev)
  * @brief Spatial Audio for Arm Cortex-M7
  * @version 0.1
@@ -15,6 +15,7 @@
 #include <Audio.h>
 #include <arm_math.h>
 #include <arm_const_structs.h>
+#include "IR.h"
 
 #define PARTITION_SIZE 128
 #define PARTITION_COUNT 64
@@ -33,20 +34,21 @@ typedef struct HRIR
 	float32_t *rightIR;
 } HRIR;
 
-class convolvIR : public AudioStream
+
+enum Stereo
+{
+	leftChannel,
+	rightChannel
+};
+
+class CONVOLVIR : public AudioStream
 {
 public:
-	convolvIR(void);
-
-	int8_t convertIR(const HRIR *hrir);
+	CONVOLVIR(void);
 
 	virtual void update(void);
-
-	enum Channels
-	{
-		STEREO_LEFT,
-		STEREO_RIGHT
-	};
+	static void setPassthrough(bool passthrough);
+	static void setAngle(uint16_t angle);
 
 private:
 	audio_block_t *inputQueueArray[2];
@@ -60,10 +62,13 @@ private:
 	HRTF hrtf;
 
 	void init(void);
-	int8_t convolve(void);
-	int8_t multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex);
+	void convolve(void);
+	void multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex);
+	void convertIR(const HRIR *hrir);
 
 	volatile bool audioReady = false;
+	
+	static bool audioPassthrough;
 	
 	uint16_t partitionIndex = 0;
 	float32_t convolutionPartitions[PARTITION_COUNT][512];

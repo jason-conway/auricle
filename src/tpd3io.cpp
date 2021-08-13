@@ -100,6 +100,36 @@ void __attribute__((section(".flashmem"))) TPD3IO::switchInput(void)
     GPIO6_DR_CLEAR = GPIO_MASK_SIG_SEL;
 }
 
+void __attribute__((section(".flashmem"))) TPD3IO::currentStatus(void)
+{
+    checkAll();
+    SerialUSB.printf("Current Input: ");
+    switch (d3status.mode)
+    {
+    case USB:
+        SerialUSB.printf("USB\n");
+        break;
+    case OPT:
+        SerialUSB.printf("Optical\n");
+        SerialUSB.printf("PLL Status: %s\n", pllStatus() ? "Locked" : "Not Locked");
+        break;
+    case RCA:
+        SerialUSB.printf("RCA\n");
+        break;
+    case BNC:
+        SerialUSB.printf("BNC\n");
+        break;
+    default:
+        break;
+    }
+   
+    
+}
+
+void  __attribute__((section(".flashmem"))) TPD3IO::checkAll(void)
+{
+
+}
 /**
  * @brief Check if SIG_USB is HIGH
  * 

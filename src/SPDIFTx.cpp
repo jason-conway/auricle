@@ -38,9 +38,6 @@ SPDIFTx::SPDIFTx(void) : AudioStream(2, inputQueueArray)
  */
 void __attribute__((section(".flashmem"))) SPDIFTx::init(void)
 {
-    // pinMode(0,OUTPUT);
-    // pinMode(1,OUTPUT);
-
     dmaChannel = configureDMA();
     configureSpdifRegisters();
 
@@ -71,7 +68,6 @@ void __attribute__((section(".flashmem"))) SPDIFTx::init(void)
  */
 void SPDIFTx::dmaISR(void)
 {
-    // digitalWriteFast(0, 1);
     uint32_t txOffset = getTxOffset((uint32_t)&txBuffer[0], 2048);
 
     // Clear Interrupt Request Register (pg 138)
@@ -98,7 +94,6 @@ void SPDIFTx::dmaISR(void)
     }
     
     update_all();
-    // digitalWriteFast(0, 0);
 }
 
 /**
@@ -174,7 +169,6 @@ void SPDIFTx::update(void)
  */
 inline void __attribute__((optimize("-O1"))) dmaCopyAudio(int32_t *pTx, const int32_t *pTxStop, const int16_t *leftAudioData, const int16_t *rightAudioData)
 {
-    // digitalWriteFast(1,1);
     do
     {
         SCB_CACHE_DCCIMVAC = (uintptr_t)pTx; // D-cache clean and invalidate by MVA to PoC
@@ -192,7 +186,6 @@ inline void __attribute__((optimize("-O1"))) dmaCopyAudio(int32_t *pTx, const in
     // TODO: Needed? 
     // __asm__ volatile("dsb");            
     // __asm__ volatile("isb");
-    // digitalWriteFast(1,0);   
 }
 
 /**

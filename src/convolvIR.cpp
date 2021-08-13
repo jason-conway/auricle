@@ -1,5 +1,5 @@
 /**
- * @file convolvIR.cpp
+ * @file CONVOLVIR.cpp
  * @author Jason Conway (jpc@jasonconway.dev)
  * @brief Spatial Audio for the Arm Cortex-M7
  * @version 0.1
@@ -11,11 +11,14 @@
 
 #include "convolvIR.h"
 
+bool CONVOLVIR::audioPassthrough(false);
+
 /**
- * @brief Construct a new convolvIR::convolvIR object
+ * @brief Construct a new CONVOLVIR::CONVOLVIR object
  * 
  */
-convolvIR::convolvIR(void) : AudioStream(2, inputQueueArray)
+
+CONVOLVIR::CONVOLVIR(void) : AudioStream(2, inputQueueArray)
 {
 	init();
 }
@@ -24,7 +27,7 @@ convolvIR::convolvIR(void) : AudioStream(2, inputQueueArray)
  * @brief 
  * 
  */
-void __attribute__((section(".flashmem"))) convolvIR::init(void)
+void __attribute__((section(".flashmem"))) CONVOLVIR::init(void)
 {
 	for (size_t i = 0; i < PARTITION_COUNT; i++)
 	{
@@ -50,7 +53,7 @@ void __attribute__((section(".flashmem"))) convolvIR::init(void)
  * @param hrir 
  * @return int8_t 
  */
-int8_t __attribute__((section(".flashmem"))) convolvIR::convertIR(const HRIR *hrir) 
+void __attribute__((section(".flashmem"))) CONVOLVIR::convertIR(const HRIR *hrir) 
 {
 	audioReady = false;
 
@@ -86,18 +89,14 @@ int8_t __attribute__((section(".flashmem"))) convolvIR::convertIR(const HRIR *hr
 			}
 		}
 	}
-
 	audioReady = true;
-
-	return 0;
 }
 
 /**
  * @brief 
  * 
- * @return int8_t 
  */
-int8_t convolvIR::convolve(void)
+void CONVOLVIR::convolve(void)
 {	
 	for (size_t i = 0; i < 2; i++) // Two iterations - left and right
 	{
@@ -129,7 +128,6 @@ int8_t convolvIR::convolve(void)
 			}
 		}
 	}
-	return 0;
 }
 
 /**
@@ -137,9 +135,8 @@ int8_t convolvIR::convolve(void)
  * 
  * @param hrtf 
  * @param shiftIndex 
- * @return int8_t 
  */
-int8_t __attribute__ ((optimize("-O1"))) convolvIR::multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex)
+void __attribute__ ((optimize("-O1"))) CONVOLVIR::multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex)
 {
 	for (size_t i = 0; i < PARTITION_COUNT; i++)
 	{
@@ -150,32 +147,52 @@ int8_t __attribute__ ((optimize("-O1"))) convolvIR::multiplyAccumulate(float32_t
 		// Decrease counter by 1 until we've reached zero, then restart
 		shiftIndex = ((shiftIndex - 1) < 0) ? (PARTITION_COUNT - 1) : (shiftIndex - 1);
 	}
-	return 0;
 }
 
+void CONVOLVIR::setPassthrough(bool passthrough)
+{
+	CONVOLVIR::audioPassthrough = passthrough;
+}
+
+void CONVOLVIR::setAngle(uint16_t sourceAngle)
+{
+	uint16_t index = floor(sourceAngle / 45); // Change later
+	HRIR hrir;
+	hrir.leftIR = IR_LUT[index][0];
+	hrir.rightIR = IR_LUT[index][1];
+}
 /**
  * @brief Updates every 128 samples / 2.9 ms
  * 
  */
-void convolvIR::update(void)
+void CONVOLVIR::update(void)
 {
-	
 	if (!(audioReady)) // Impulse response hasn't been processed yet
 	{
 		return;
 	}
 	
-	audio_block_t *leftAudio = receiveWritable(STEREO_LEFT);
-	audio_block_t *rightAudio = receiveWritable(STEREO_RIGHT);
+	audio_block_t *leftAudio = receiveWritable(leftChannel);
+	audio_block_t *rightAudio = receiveWritable(rightChannel);
 
 	if (leftAudio && rightAudio) // Data available on both the left and right channels
 	{
+		if (audioPassthrough) // Not messing with the data, just sending it through the pipe
+		{
+			transmit(leftAudio, leftChannel);
+			transmit(rightAudio, rightChannel);
+			release(leftAudio);
+			release(rightAudio);
+			return;
+		}
+
 		// Disable interrupts while computing the convolution 
 		__asm__ volatile("CPSID i":::"memory");
 
 		// Use float32 for higher precision intermediate calculations
 		arm_q15_to_float(leftAudio->data, leftAudioData, 128);
 		arm_q15_to_float(rightAudio->data, rightAudioData, 128);
+		
 
 		for (size_t i = 0; i < PARTITION_SIZE; i++)
 		{
@@ -188,9 +205,22 @@ void convolvIR::update(void)
 			audioConvolutionBuffer[2 * i + 257] = rightAudioData[i]; // [257] [259] [261] ... [511]
 
 			// Copy the current audio data into buffers for next sample overlap-and-save
+			//leftAudioPrevSample[i] = leftAudioData[i];
+			//rightAudioPrevSample[i] = rightAudioData[i];
+		}
+#if 0
+
+		for (size_t i = 0; i < PARTITION_SIZE; i++)
+		{
 			leftAudioPrevSample[i] = leftAudioData[i];
 			rightAudioPrevSample[i] = rightAudioData[i];
 		}
+#endif
+
+#if 1
+		arm_copy_f32(leftAudioData, leftAudioPrevSample, 128);
+		arm_copy_f32(rightAudioData, rightAudioPrevSample, 128);
+#endif
 
 		arm_cfft_f32(&arm_cfft_sR_f32_len256, audioConvolutionBuffer, FORWARD, 1);
 
@@ -205,8 +235,8 @@ void convolvIR::update(void)
 		arm_float_to_q15(rightAudioData, rightAudio->data, 128);
 
 		// Transmit left and right audio to the output
-		transmit(leftAudio, STEREO_LEFT);
-		transmit(rightAudio, STEREO_RIGHT);
+		transmit(leftAudio, leftChannel);
+		transmit(rightAudio, rightChannel);
 		
 		// Re-enable interrupts
 		__asm__ volatile("CPSIE i":::"memory");
