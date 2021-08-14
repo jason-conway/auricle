@@ -64,7 +64,7 @@ void USCP::parseCmdString(void)
 	if (command != NULL)
 	{
 		bool cmdKnown = false;
-		for (size_t i = 1; i < numCmds; i++) // cmd[0] is the default
+		for (size_t i = 2; i < numCmds; i++) // cmd[0] is the default, cmd[1] always runs
 		{
 			if (strncmp(command, cmd[i].cmdName, 16) == 0)
 			{
@@ -75,12 +75,13 @@ void USCP::parseCmdString(void)
 		}
 		if (!(cmdKnown))
 		{
-			(cmd[0].cmdFunction)(cmd[0].cmdArg);
+			(cmd[1].cmdFunction)(cmd[1].cmdArg);
 		}
 	}
 
 	memset(streamBuffer, 0, sizeof(streamBuffer));
 	streamBufferIndex = 0;
+	(cmd[0].cmdFunction)(cmd[0].cmdArg);
 }
 
 /**
@@ -91,6 +92,15 @@ void USCP::parseCmdString(void)
 char *USCP::getArg(void)
 {
 	return tokenize(NULL, &scratchPad);
+}
+
+void USCP::listCmds(void)
+{
+	SerialUSB.printf("Available Commands: \n");
+	for (size_t i = 3; i < numCmds; i++)
+	{
+		SerialUSB.printf("%s\n", cmd[i].cmdName);
+	}
 }
 
 /**

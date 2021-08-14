@@ -1,5 +1,5 @@
 /**
- * @file usb_name.c
+ * @file usbDescriptor.c
  * @author Jason Conway (jpc@jasonconway.dev)
  * @brief Configure USB descriptors
  * @version 0.1

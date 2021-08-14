@@ -15,6 +15,7 @@
 #include "auricle.h"
 #include "uscp.h"
 #include "tpd3io.h"
+#include "convolvIR.h"
 
 #define PROGRESS_WIDTH 60
 #define PROGRESS_BAR "============================================================"
@@ -24,19 +25,26 @@ class ASH
 public:
     ASH(void);
     void execLoop(void);
-
-private:
     void init(void);
 
+private:
+    void motd(void);
     static void togglePower(void *);
     static void setAngle(void *);
     static void switchInput(void *);
     static void currentStatus(void *);
-    static void testFunction(void *);
     static void audioPassthrough(void *);
-    static void unknownCommand(void *);
 
+    static void reboot(void *);
+    static void memoryUse(void *);
+    static void listCommands(void *);
+
+    static void unknownCommand(void *);
+    static void hostname(void *);
+    
     void progressBar(uint8_t progress);
+
+
 };
 
 #endif

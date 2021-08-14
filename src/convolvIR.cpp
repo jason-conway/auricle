@@ -11,8 +11,6 @@
 
 #include "convolvIR.h"
 
-bool CONVOLVIR::audioPassthrough(false);
-
 /**
  * @brief Construct a new CONVOLVIR::CONVOLVIR object
  * 
@@ -151,7 +149,7 @@ void __attribute__ ((optimize("-O1"))) CONVOLVIR::multiplyAccumulate(float32_t (
 
 void CONVOLVIR::setPassthrough(bool passthrough)
 {
-	CONVOLVIR::audioPassthrough = passthrough;
+	audioPassthrough = passthrough;
 }
 
 /**

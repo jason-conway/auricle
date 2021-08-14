@@ -42,11 +42,11 @@ enum Stereo
 
 class CONVOLVIR : public AudioStream
 {
-public:
+public:	
 	CONVOLVIR(void);
-
 	virtual void update(void);
-	static void setPassthrough(bool passthrough);
+	void setPassthrough(bool passthrough);
+	void convertIR(const HRIR *hrir);
 
 private:
 	audio_block_t *inputQueueArray[2];
@@ -62,11 +62,10 @@ private:
 	void init(void);
 	void convolve(void);
 	void multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex);
-	void convertIR(const HRIR *hrir);
+
 
 	volatile bool audioReady = false;
-	
-	static bool audioPassthrough;
+	volatile bool audioPassthrough;
 	
 	uint16_t partitionIndex = 0;
 	float32_t convolutionPartitions[PARTITION_COUNT][512];
@@ -79,5 +78,7 @@ private:
 	float32_t multAccum[512];
 	float32_t cmplxProduct[512];
 };
+
+extern CONVOLVIR convolvIR;
 
 #endif

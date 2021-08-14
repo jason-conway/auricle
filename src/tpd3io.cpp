@@ -74,7 +74,6 @@ void __attribute__((section(".flashmem"))) TPD3IO::init(void)
 
     d3status.mode = MODE_NULL;
     d3status.power = POWER_OFF;
-
 }
 
 /**
@@ -102,34 +101,43 @@ void __attribute__((section(".flashmem"))) TPD3IO::switchInput(void)
 
 void __attribute__((section(".flashmem"))) TPD3IO::currentStatus(void)
 {
-    checkAll();
-    SerialUSB.printf("Current Input: ");
-    switch (d3status.mode)
+    if (d3status.power == POWER_ON)
     {
-    case USB:
-        SerialUSB.printf("USB\n");
-        break;
-    case OPT:
-        SerialUSB.printf("Optical\n");
-        SerialUSB.printf("PLL Status: %s\n", pllStatus() ? "Locked" : "Not Locked");
-        break;
-    case RCA:
-        SerialUSB.printf("RCA\n");
-        break;
-    case BNC:
-        SerialUSB.printf("BNC\n");
-        break;
-    default:
-        break;
+        checkAll();
+        SerialUSB.printf("Current Input: ");
+        switch (d3status.mode)
+        {
+        case USB:
+            SerialUSB.printf("USB\n");
+            break;
+        case OPT:
+            SerialUSB.printf("Optical\n");
+            SerialUSB.printf("PLL Status: %s\n", (pllStatus() == D3_PLL_LOCKED) ? "Locked" : "Not Locked");
+            break;
+        case RCA:
+            SerialUSB.printf("RCA\n");
+            break;
+        case BNC:
+            SerialUSB.printf("BNC\n");
+            break;
+        default:
+            break;
+        }
     }
-   
-    
+    else
+    {
+        SerialUSB.printf("D3 is not powered on\n");
+    }
 }
 
-void  __attribute__((section(".flashmem"))) TPD3IO::checkAll(void)
+void __attribute__((section(".flashmem"))) TPD3IO::checkAll(void)
 {
-
+    this->checkSigUSB();
+    this->checkSigOPT();
+    this->checkSigRCA();
+    this->checkSigBNC();
 }
+
 /**
  * @brief Check if SIG_USB is HIGH
  * 
@@ -207,9 +215,9 @@ uint8_t __attribute__((section(".flashmem"))) TPD3IO::pllStatus(void)
             {
                 return D3_PLL_NOT_LOCKED;
             }
-            while (ARM_DWT_CYCCNT - startingCycleCount < (uint32_t)99000000); // 250ms
-
-        } 
+            while (ARM_DWT_CYCCNT - startingCycleCount < (uint32_t)99000000)
+                ; // 250ms
+        }
         return D3_PLL_LOCKED;
     }
     return D3_INCORRECT_MODE;

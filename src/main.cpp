@@ -9,18 +9,16 @@
  * 
  */
 
-#include "auricle.h"
 #include "convolvIR.h"
+#include "auricle.h"
+
 #include "SPDIFTx.h"
-#include "IR.h"
-#include "tpd3io.h"
-#include "uscp.h"
 #include "ash.h"
 
 AudioInputUSB stereoIn;
 SPDIFTx stereoOut;
-CONVOLVIR convolvIR;
 
+CONVOLVIR convolvIR;
 ASH ash;
 
 // AudioConnection leftPassThrough(stereoIn, 0, stereoOut, 0);
@@ -41,8 +39,8 @@ int main(void)
 		delay(100);
 	}
 
-
 	SerialUSB.printf("Serial connected\n");
+	ash.init();
 
 	AudioMemory(20);
 	

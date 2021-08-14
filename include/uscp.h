@@ -15,9 +15,6 @@
 #include "auricle.h"
 #include <Stream.h>
 #include <string.h>
-#include <cstdint>
-#include <cstddef>
-#include <functional>
 
 class USCP
 {
@@ -26,6 +23,7 @@ public:
     
     void newCmd(const char *cmdName, void (*cmdFunction)(void *), void *cmdArg);
     void checkStream(void);
+    void listCmds(void);
     char *getArg(void); 
 
 protected:
