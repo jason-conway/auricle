@@ -11,7 +11,6 @@
 
 #include "convolvIR.h"
 #include "auricle.h"
-
 #include "SPDIFTx.h"
 #include "ash.h"
 
@@ -29,20 +28,19 @@ AudioConnection rightInConv(stereoIn, rightChannel, convolvIR, rightChannel);
 AudioConnection leftOutConv(convolvIR, leftChannel, stereoOut, leftChannel);
 AudioConnection rightOutConv(convolvIR, rightChannel, stereoOut, rightChannel);
 
-
 int main(void)
 {
-	Serial.begin(115200);
-	while (!(Serial))
+	SerialUSB.begin(115200);
+	while (!(SerialUSB))
 	{
-		//yield();
-		delay(100);
+		uint32_t startingCount = ARM_DWT_CYCCNT;
+    	while (ARM_DWT_CYCCNT - startingCount < 396000);
 	}
-
-	SerialUSB.printf("Serial connected\n");
+	
 	ash.init();
 
-	AudioMemory(20);
+	static DMAMEM audio_block_t allocatedAudioMemory[20]; 
+	AudioStream::initialize_memory(allocatedAudioMemory, 20);
 	
 	while (1)
 	{

@@ -36,6 +36,7 @@ private:
     char *scratchPad = NULL; // Scratchpad for tokenize
     
     char streamBuffer[64]; 
+    
     uint8_t streamBufferIndex = 0;   
     
     struct command_t

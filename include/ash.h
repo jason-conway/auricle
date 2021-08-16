@@ -34,8 +34,10 @@ private:
     static void switchInput(void *);
     static void currentStatus(void *);
     static void audioPassthrough(void *);
+    static void audioMemory(void *);
 
     static void reboot(void *);
+    static void clear(void *);
     static void memoryUse(void *);
     static void listCommands(void *);
 

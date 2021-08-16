@@ -63,9 +63,8 @@ private:
 	void convolve(void);
 	void multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex);
 
-
 	volatile bool audioReady = false;
-	volatile bool audioPassthrough;
+	volatile bool audioPassthrough = false;
 	
 	uint16_t partitionIndex = 0;
 	float32_t convolutionPartitions[PARTITION_COUNT][512];

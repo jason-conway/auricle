@@ -18,10 +18,4 @@
 
 #define IR_SAMPLES 8192
 
-
-// #define MANUFACTURER_NAME	{'J','A','S','O','N','C','O','N','W','A','Y'}
-// #define MANUFACTURER_NAME_LEN	11
-// #define PRODUCT_NAME	{'a', 'u', 'r', 'i', 'c', 'l', 'e'}
-// #define PRODUCT_NAME_LEN	7
-
 #endif

@@ -13,13 +13,11 @@
 
 // S/PDIF transmit buffer
 // TCD0_SADDR -> TCD31_SADDR
-static int32_t __attribute__ ((section(".dmabuffers"), used)) __attribute__((aligned(32))) txBuffer[512];
-audio_block_t __attribute__ ((section(".dmabuffers"), used)) __attribute__((aligned(32))) SPDIFTx::silentAudio;
+static int32_t __attribute__((section(".dmabuffers"), used)) __attribute__((aligned(32))) txBuffer[512];
+audio_block_t __attribute__((section(".dmabuffers"), used)) __attribute__((aligned(32))) SPDIFTx::silentAudio;
 
-audio_block_t *SPDIFTx::leftAudioMSB = nullptr;
-audio_block_t *SPDIFTx::rightAudioMSB = nullptr;
-audio_block_t *SPDIFTx::leftAudioLSB = nullptr;
-audio_block_t *SPDIFTx::rightAudioLSB = nullptr;
+audio_block_t *SPDIFTx::leftAudioBuffer[];
+audio_block_t *SPDIFTx::rightAudioBuffer[];
 
 DMAChannel SPDIFTx::eDMA(false);
 
@@ -45,9 +43,9 @@ void __attribute__((section(".flashmem"))) SPDIFTx::init(void)
 
     // Set Enable Request Register (pg 134)
     DMA_SERQ = dmaChannel;
-    
+
     update_setup();
-    
+
     eDMA.attachInterrupt(dmaISR);
 
     SPDIF_SCR |= SPDIF_SCR_DMA_TX_EN;     // DMA Transmit Request Enable
@@ -55,10 +53,11 @@ void __attribute__((section(".flashmem"))) SPDIFTx::init(void)
 
     memset(&silentAudio, 0, sizeof(silentAudio));
 
-    leftAudioMSB = nullptr;
-    rightAudioMSB = nullptr;
-    leftAudioLSB = nullptr;
-    rightAudioLSB = nullptr;
+    for (size_t i = 0; i < 2; i++)
+    {
+        leftAudioBuffer[i] = nullptr;
+        rightAudioBuffer[i] = nullptr;
+    }
 }
 
 /**
@@ -76,23 +75,22 @@ void SPDIFTx::dmaISR(void)
     int32_t *txBaseAddress = &txBuffer[0] + txOffset;
     const int32_t *txStopAddress = &txBuffer[0] + txOffset + 256;
 
-    audio_block_t *leftAudio = (leftAudioMSB) ? leftAudioMSB : &silentAudio;
-    audio_block_t *rightAudio = (rightAudioMSB) ? rightAudioMSB : &silentAudio;
+    audio_block_t *leftAudio = (leftAudioBuffer[0]) ? leftAudioBuffer[0] : &silentAudio;
+    audio_block_t *rightAudio = (rightAudioBuffer[0]) ? rightAudioBuffer[0] : &silentAudio;
 
-    dmaCopyAudio(txBaseAddress, txStopAddress, (const int16_t *)(leftAudio->data), (const int16_t *)(rightAudio->data));    
+    dmaCopyAudio(txBaseAddress, txStopAddress, (const int16_t *)(leftAudio->data), (const int16_t *)(rightAudio->data));
 
     if (leftAudio != &silentAudio && rightAudio != &silentAudio)
     {
         release(leftAudio);
         release(rightAudio);
 
-        leftAudioMSB = leftAudioLSB;
-        rightAudioMSB = rightAudioLSB;
-
-        leftAudioLSB = nullptr;
-        rightAudioLSB = nullptr;
+        leftAudioBuffer[0] = leftAudioBuffer[1];
+        leftAudioBuffer[1] = nullptr;
+        rightAudioBuffer[0] = rightAudioBuffer[1];
+        rightAudioBuffer[1] = nullptr;
     }
-    
+
     update_all();
 }
 
@@ -109,41 +107,42 @@ void SPDIFTx::update(void)
 
     if (leftAudio && rightAudio)
     {
+        // Doing buffer packing in a loop is too slow, has to be done like this 
         // Left channel switcheroo
-        if (leftAudioMSB == nullptr)
+        if (leftAudioBuffer[0] == nullptr)
         {
-            leftAudioMSB = leftAudio;
+            leftAudioBuffer[0] = leftAudio;
             leftAudio = nullptr;
         }
-        else if (leftAudioLSB == nullptr)
+        else if (leftAudioBuffer[1] == nullptr)
         {
-            leftAudioLSB = leftAudio;
+            leftAudioBuffer[1] = leftAudio;
             leftAudio = nullptr;
         }
         else
         {
-            audio_block_t *shiftTemp = leftAudioMSB;
-            leftAudioMSB = leftAudioLSB;
-            leftAudioLSB = leftAudio;
+            audio_block_t *shiftTemp = leftAudioBuffer[0];
+            leftAudioBuffer[0] = leftAudioBuffer[1];
+            leftAudioBuffer[1] = leftAudio;
             leftAudio = shiftTemp;
         }
 
         // Right channel switcheroo
-        if (rightAudioMSB == nullptr)
+        if (rightAudioBuffer[0] == nullptr)
         {
-            rightAudioMSB = rightAudio;
+            rightAudioBuffer[0] = rightAudio;
             rightAudio = nullptr;
         }
-        else if (rightAudioLSB == nullptr)
+        else if (rightAudioBuffer[1] == nullptr)
         {
-            rightAudioLSB = rightAudio;
+            rightAudioBuffer[1] = rightAudio;
             rightAudio = nullptr;
         }
         else
         {
-            audio_block_t *shiftTemp = rightAudioMSB;
-            rightAudioMSB = rightAudioLSB;
-            rightAudioLSB = rightAudio;
+            audio_block_t *shiftTemp = rightAudioBuffer[0];
+            rightAudioBuffer[0] = rightAudioBuffer[1];
+            rightAudioBuffer[1] = rightAudio;
             rightAudio = shiftTemp;
         }
     }
@@ -172,7 +171,7 @@ inline void __attribute__((optimize("-O1"))) dmaCopyAudio(int32_t *pTx, const in
     do
     {
         SCB_CACHE_DCCIMVAC = (uintptr_t)pTx; // D-cache clean and invalidate by MVA to PoC
-        __asm__ volatile("dsb");              // Sync execution stream
+        __asm__ volatile("dsb");             // Sync execution stream
         *pTx++ = (*leftAudioData++) << 8;
         *pTx++ = (*rightAudioData++) << 8;
         *pTx++ = (*leftAudioData++) << 8;
@@ -182,9 +181,9 @@ inline void __attribute__((optimize("-O1"))) dmaCopyAudio(int32_t *pTx, const in
         *pTx++ = (*leftAudioData++) << 8;
         *pTx++ = (*rightAudioData++) << 8;
     } while (pTx < pTxStop);
-    
-    // TODO: Needed? 
-    // __asm__ volatile("dsb");            
+
+    // TODO: Needed?
+    // __asm__ volatile("dsb");
     // __asm__ volatile("isb");
 }
 
@@ -263,12 +262,12 @@ void __attribute__((section(".flashmem"))) SPDIFTx::configureSpdifRegisters(void
 {
     uint32_t startingCount = ARM_DWT_CYCCNT;
     while (ARM_DWT_CYCCNT - startingCount < 396000);
-    
+
     // Analog Audio PLL control Register (pg 1110)
     CCM_ANALOG_PLL_AUDIO =
-        CCM_ANALOG_PLL_AUDIO_BYPASS | // Bypass the PLL
-        CCM_ANALOG_PLL_AUDIO_ENABLE | // Enable PLL output
-        CCM_ANALOG_PLL_AUDIO_POST_DIV_SELECT(0b10) | // 0b10 — Divide by 1
+        CCM_ANALOG_PLL_AUDIO_BYPASS |                    // Bypass the PLL
+        CCM_ANALOG_PLL_AUDIO_ENABLE |                    // Enable PLL output
+        CCM_ANALOG_PLL_AUDIO_POST_DIV_SELECT(0b10) |     // 0b10 — Divide by 1
         CCM_ANALOG_PLL_AUDIO_DIV_SELECT(SPDIF_LOOP_DIV); // PLL loop divider
 
     // Numerator and Denominator of Audio PLL Fractional Loop Divider Register (pg 1112)

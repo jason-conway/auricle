@@ -30,6 +30,7 @@
 #define GPIO_AD_B1_02_MUX_MODE_SPDIF 0b011
 
 inline void dmaCopyAudio(int32_t *pTx, const int32_t *pTxStop, const int16_t *leftAudioData, const int16_t *rightAudioData);
+inline void packAudioBuffer(audio_block_t *audioBlock, audio_block_t *audioBuffer[2]);
 
 class SPDIFTx : public AudioStream
 {
@@ -39,10 +40,10 @@ public:
 
 private:
 	audio_block_t *inputQueueArray[2];
-	static audio_block_t *leftAudioMSB;
-	static audio_block_t *rightAudioMSB;
-	static audio_block_t *leftAudioLSB;
-	static audio_block_t *rightAudioLSB;
+	static audio_block_t *leftAudioBuffer[2];
+	static audio_block_t *rightAudioBuffer[2];
+	// static audio_block_t *leftAudioLSB;
+	// static audio_block_t *rightAudioLSB;
 	static audio_block_t silentAudio;
 
 	static DMAChannel eDMA;
