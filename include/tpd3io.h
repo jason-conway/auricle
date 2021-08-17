@@ -50,10 +50,6 @@
 // MUX_MODE ALT5 ==> GPIO
 #define GPIO_MUX_MODE_ALT5 (0b0101 | 0b00010000)
 
-#define D3_PLL_NOT_LOCKED 0
-#define D3_PLL_LOCKED 1
-#define D3_INCORRECT_MODE 2
-
 class TPD3IO
 {
 public:
@@ -65,17 +61,24 @@ public:
 private:
     enum D3InputMode
     {
-        MODE_NULL,
-        USB,
-        OPT,
-        RCA,
-        BNC
+        ModeNull,
+        ModeUSB,
+        ModeOPT,
+        ModeRCA,
+        ModeBNC
     };
 
     enum D3Power
     {
-        POWER_OFF,
-        POWER_ON
+        PowerNull,
+        PowerOff,
+        PowerOn
+    };
+
+    enum D3_PLL_Return_Codes
+    {
+        NotLocked,
+        Locked
     };
 
     typedef struct D3Status
@@ -96,6 +99,8 @@ private:
     uint8_t checkSigOPT(void);
     uint8_t checkSigRCA(void);
     uint8_t checkSigBNC(void);
+
+    void constDelay(void);
 
 };
 

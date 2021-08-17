@@ -19,35 +19,35 @@
 class USCP
 {
 public:
-    USCP(void);              
-    
-    void newCmd(const char *cmdName, void (*cmdFunction)(void *), void *cmdArg);
-    void checkStream(void);
-    void listCmds(void);
-    char *getArg(void); 
+	USCP(void);              
+	
+	void newCmd(const char *cmdName, void (*cmdFunction)(void *), void *cmdArg);
+	void checkStream(void);
+	void listCmds(void);
+	char *getArg(void); 
 
 protected:
 
 private:
-    void init(void);
-    char *tokenize(char *__restrict inputString, char **__restrict scratchPad);
-    void parseCmdString(void);
+	void init(void);
+	char *tokenize(char *__restrict inputString, char **__restrict scratchPad);
+	void parseCmdString(void);
 
-    char *scratchPad = NULL; // Scratchpad for tokenize
-    
-    char streamBuffer[64]; 
-    
-    uint8_t streamBufferIndex = 0;   
-    
-    struct command_t
-    {
-        char cmdName[16]; 
-        void (*cmdFunction)(void*);
-        void *cmdArg;
-    };
-    
-    command_t *cmd; 
-    uint8_t numCmds = 0;
+	char *scratchPad = NULL; // Scratchpad for tokenize
+	
+	char streamBuffer[33]; 
+	
+	uint8_t streamBufferIndex = 0;   
+	
+	struct command_t
+	{
+		char cmdName[25]; 
+		void (*cmdFunction)(void*);
+		void *cmdArg;
+	};
+	
+	command_t *cmd; 
+	uint8_t numCmds = 0;
 };
 
 #endif

@@ -17,11 +17,8 @@
 AudioInputUSB stereoIn;
 SPDIFTx stereoOut;
 
-CONVOLVIR convolvIR;
+ConvolvIR convolvIR;
 ASH ash;
-
-// AudioConnection leftPassThrough(stereoIn, 0, stereoOut, 0);
-// AudioConnection rightPassThrough(stereoIn, 1, stereoOut, 1);
 
 AudioConnection leftInConv(stereoIn, leftChannel, convolvIR, leftChannel);
 AudioConnection rightInConv(stereoIn, rightChannel, convolvIR, rightChannel);
@@ -31,25 +28,21 @@ AudioConnection rightOutConv(convolvIR, rightChannel, stereoOut, rightChannel);
 int main(void)
 {
 	SerialUSB.begin(115200);
+	
 	while (!(SerialUSB))
 	{
-		uint32_t startingCount = ARM_DWT_CYCCNT;
-    	while (ARM_DWT_CYCCNT - startingCount < 396000);
+		uint32_t startingCycleCount = (*(volatile uint32_t *)0xE0001004);
+		while ((*(volatile uint32_t *)0xE0001004) - startingCycleCount < (uint32_t)99000000);
 	}
 	
 	ash.init();
 
-	static DMAMEM audio_block_t allocatedAudioMemory[20]; 
+	static __attribute__ ((section(".dmabuffers"), used)) audio_block_t allocatedAudioMemory[20]; 
 	AudioStream::initialize_memory(allocatedAudioMemory, 20);
 	
 	while (1)
 	{
-		// float32_t usage = AudioProcessorUsage();
-		// Serial.printf("%.2f%%\n", usage);
-
 		ash.execLoop();
-		yield();
-		delay(100);
 	}
 
 	return EXIT_SUCCESS;

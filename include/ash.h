@@ -17,9 +17,6 @@
 #include "tpd3io.h"
 #include "convolvIR.h"
 
-#define PROGRESS_WIDTH 60
-#define PROGRESS_BAR "============================================================"
-
 class ASH
 {
 public:
@@ -44,9 +41,6 @@ private:
     static void unknownCommand(void *);
     static void hostname(void *);
     
-    void progressBar(uint8_t progress);
-
-
 };
 
 #endif

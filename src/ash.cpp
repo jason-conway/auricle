@@ -183,19 +183,4 @@ void ASH::motd(void)
 	hostname(NULL);
 }
 
-// Stdout progress bar for displaying synthesis completion
-void ASH::progressBar(uint8_t progress)
-{
-	uint8_t percentComplete = uint8_t(100 * progress); // Round to floor
-
-	// Determine needed left and right padding
-	uint8_t leftPadding = (uint8_t)(PROGRESS_WIDTH * progress);
-	uint8_t rightPadding = PROGRESS_WIDTH - leftPadding;
-
-	// Display ###% [========]
-	SerialUSB.printf("\r%3d%% [%.*s%*s]", percentComplete, leftPadding, PROGRESS_BAR, rightPadding, "");
-
-	fflush(stdout); // stdout is buffered so this is needed
-}
-
 
