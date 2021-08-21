@@ -18,22 +18,21 @@ USCP::USCP()
 
 void USCP::init(void)
 {
-	memset(streamBuffer, 0, sizeof(streamBuffer));
-	SerialUSB.setTimeout(10000);
+	memset(strBuffer, 0, sizeof(strBuffer));
 }
 
 /**
  * @brief Add a name and function pointer pair to the command table
  * 
- * @param cmdName 
- * @param cmdFunction 
- * @param cmdArg 
+ * @param cmdName Name tied to the command created
+ * @param cmdFunction Function to be called upon receiving the command
+ * @param cmdArg Argument to be passed to cmdFunction
  */
 void USCP::newCmd(const char *cmdName, void (*cmdFunction)(void *), void *cmdArg)
 {
 	cmd = (command_t *)realloc(cmd, (numCmds + 1) * sizeof(command_t));
 
-	strncpy(cmd[numCmds].cmdName, cmdName, 24);
+	strncpy(cmd[numCmds].cmdName, cmdName, commandLength);
 
 	cmd[numCmds].cmdFunction = cmdFunction;
 	cmd[numCmds].cmdArg = cmdArg;
@@ -41,46 +40,88 @@ void USCP::newCmd(const char *cmdName, void (*cmdFunction)(void *), void *cmdArg
 }
 
 /**
- * @brief 
+ * @brief Gets a string from the serial terminal. Echos back characters while typing and handles backspaces.
+ * Calls parser once the string is complete.
+ *
+ * https://en.wikipedia.org/wiki/ANSI_escape_code
+ * https://en.wikipedia.org/wiki/C0_and_C1_control_codes
  * 
  */
-void USCP::checkStream()
+void USCP::checkStream(void)
 {
-	while (usb_serial_available() > 0)
+    bool EOL = false;
+	while (usb_serial_available())
 	{
-		size_t charactersRead = (SerialUSB.readBytesUntil('\n', streamBuffer, 32));
-		if (charactersRead > 0)
+		char serialChar = usb_serial_getchar();
+    
+        // Backspace
+		if (strlen(strBuffer) && serialChar == '\x08') 
 		{
-			if (streamBuffer[charactersRead - 1] == '\r');
-			{
-				streamBuffer[charactersRead - 1] = '\0';
-			}
-
-			if (!(SerialUSB.getReadError()))
-			{
-				parseCmdString();
-			}
-			else
-			{
-				SerialUSB.clearReadError();
-			}
+			strBuffer[strlen(strBuffer) - 1] = '\0'; // Chop last char from array
+			
+			SerialUSB.printf("\033[1D"); // Move left
+			SerialUSB.printf("%c", ' '); // Overwrite char with a space
+            SerialUSB.printf("\033[1D"); // Move back left
+			continue;
 		}
+
+        // Echo printable characters
+		if (((unsigned)serialChar - 0x20) < 0x5F)
+		{
+			SerialUSB.printf("%c", serialChar);
+		}
+
+        // Line feed
+		if (serialChar == '\n')
+		{
+            // Set flag, print EOL sequence, and exit loop
+			EOL = true;
+			SerialUSB.printf("\r\n");
+			break;
+		}
+
+        // Carriage return or carriage return + line feed combo
+		if (serialChar == '\r')
+		{
+			EOL = true;
+			SerialUSB.printf("\r\n");
+			if (usb_serial_available())
+			{
+				if (usb_serial_peekchar() == '\n') // CR+LF
+				{
+					usb_serial_getchar();
+				}
+			}
+			break;
+		}
+
+        strBuffer[strBufferIndex++] = serialChar;
+		strBuffer[strBufferIndex] = '\0'; 
+	}
+
+	if (EOL)
+	{
+        parseCmdString();
+		strBuffer[0] = '\0';
+		strBufferIndex = 0;
 	}
 }
 
+
 /**
- * @brief 
+ * @brief Break string apart at the spaces and check if the first word is a known command. Call the associated function 
+ * if known, otherwise call the function associated with cmd[1]. 
  * 
  */
 void USCP::parseCmdString(void)
 {
-	char *command = tokenize(streamBuffer, &scratchPad);
+	char *command = tokenize(strBuffer, &scratchPad);
 	if (command != NULL)
 	{
 		bool cmdKnown = false;
 		for (size_t i = 2; i < numCmds; i++) // cmd[0] is the default, cmd[1] always runs
 		{
-			if (strncmp(command, cmd[i].cmdName, 24) == 0)
+			if (strncmp(command, cmd[i].cmdName, commandLength) == 0)
 			{
 				(cmd[i].cmdFunction)(cmd[i].cmdArg);
 				cmdKnown = true;
@@ -92,9 +133,6 @@ void USCP::parseCmdString(void)
 			(cmd[1].cmdFunction)(cmd[1].cmdArg);
 		}
 	}
-
-	memset(streamBuffer, 0, sizeof(streamBuffer));
-	streamBufferIndex = 0;
 	(cmd[0].cmdFunction)(cmd[0].cmdArg);
 }
 
@@ -109,16 +147,17 @@ char *USCP::getArg(void)
 }
 
 /**
- * @brief 
+ * @brief Print registered commands
  * 
  */
 void USCP::listCmds(void)
 {
-	SerialUSB.printf("Available Commands: \n");
-	for (size_t i = 3; i < numCmds; i++)
+	SerialUSB.printf("Available Commands: \r\n");
+	for (size_t i = 2; i < numCmds; i++)
 	{
-		SerialUSB.printf("%s\n", cmd[i].cmdName);
+		SerialUSB.printf("%s\r\n", cmd[i].cmdName);
 	}
+
 }
 
 /**

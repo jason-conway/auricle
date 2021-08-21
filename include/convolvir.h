@@ -27,17 +27,6 @@ typedef struct HRIR
 	float32_t *rightIR;
 } HRIR;
 
-enum Partition
-{
-	partitionSize = 128,
-	partitionCount = 64
-};
-
-enum FFT_Flags
-{
-	ForwardFFT,
-	InverseFFT
-};
 
 class ConvolvIR : public AudioStream
 {
@@ -49,6 +38,18 @@ public:
 
 private:
 	audio_block_t *inputQueueArray[2];
+
+	enum Partition
+	{
+		partitionSize = 128,
+		partitionCount = 64
+	};
+
+	enum FFT_Flags
+	{
+		ForwardFFT,
+		InverseFFT
+	};
 
 	typedef struct HRTF
 	{

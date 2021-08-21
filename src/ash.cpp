@@ -33,8 +33,8 @@ void ASH::init(void)
 	uscp.newCmd("audiomemory", this->audioMemory, NULL);
 	uscp.newCmd("reboot", this->reboot, NULL);
 	uscp.newCmd("clear", this->clear, NULL);
-	uscp.newCmd("memory-use", this->memoryUse, NULL);
-	uscp.newCmd("list", this->listCommands, NULL);
+	uscp.newCmd("memuse", this->memoryUse, NULL);
+	uscp.newCmd("lscmd", this->listCommands, NULL);
 
 	this->motd();
 }
@@ -137,17 +137,10 @@ void ASH::audioPassthrough(void *)
 
 void ASH::memoryUse(void *)
 {
-	// Linker hack
-	extern char _ebss[];
-	extern char _heap_end[];
+	extern unsigned long _heap_end;
 	extern char *__brkval;
 
-	auto sp = (char *)__builtin_frame_address(0);
-	auto stack = sp - _ebss;
-	auto heap = _heap_end - __brkval;
-
-	SerialUSB.printf("Stack: %8d b %5d kb\r\n", stack, stack >> 10);
-	SerialUSB.printf("Heap:  %8d b %5d kb\r\n", heap, heap >> 10);
+	SerialUSB.printf("Memory free: %8d\r\n", ((char *)&_heap_end - __brkval));
 }
 
 void ASH::reboot(void *)
@@ -166,13 +159,13 @@ void ASH::unknownCommand(void *)
 
 void ASH::clear(void *)
 {
-	SerialUSB.printf("\e[1;1H\e[2J");
+	SerialUSB.printf("\033[1;1H\033[2J");
 }
 
 void ASH::hostname(void *)
 {
 	SerialUSB.printf("ash> ");
-	usb_serial_flush_input();
+	fflush(stdout);
 }
 
 void ASH::motd(void)
@@ -182,5 +175,3 @@ void ASH::motd(void)
 	SerialUSB.printf("Copyright (c) 2021 Jason Conway\r\n\r\n");
 	hostname(NULL);
 }
-
-

@@ -15,6 +15,7 @@
 #include "auricle.h"
 #include <Stream.h>
 #include <string.h>
+#include <usb_serial.h>
 
 class USCP
 {
@@ -26,27 +27,32 @@ public:
 	void listCmds(void);
 	char *getArg(void); 
 
-protected:
-
 private:
 	void init(void);
 	char *tokenize(char *__restrict inputString, char **__restrict scratchPad);
 	void parseCmdString(void);
+	void serialGetString(void);
+	
+	enum strLengths
+	{
+		bufferLength = 32,
+		commandLength = 24
+	};
 
-	char *scratchPad = NULL; // Scratchpad for tokenize
+	char *scratchPad = nullptr; // Scratchpad for tokenize
 	
-	char streamBuffer[33]; 
-	
-	uint8_t streamBufferIndex = 0;   
+	String strIn;
+	char strBuffer[bufferLength]; 
+	uint8_t strBufferIndex = 0;   
 	
 	struct command_t
 	{
-		char cmdName[25]; 
+		char cmdName[commandLength]; 
 		void (*cmdFunction)(void*);
 		void *cmdArg;
 	};
 	
-	command_t *cmd; 
+	command_t *cmd = nullptr; 
 	uint8_t numCmds = 0;
 };
 
