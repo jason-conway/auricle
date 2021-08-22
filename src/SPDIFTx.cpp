@@ -181,10 +181,6 @@ inline void __attribute__((optimize("-O1"))) dmaCopyAudio(int32_t *pTx, const in
 		*pTx++ = (*leftAudioData++) << 8;
 		*pTx++ = (*rightAudioData++) << 8;
 	} while (pTx < pTxStop);
-
-	// TODO: Needed?
-	// __asm__ volatile("dsb");
-	// __asm__ volatile("isb");
 }
 
 /**

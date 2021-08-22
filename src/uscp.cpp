@@ -49,38 +49,39 @@ void USCP::newCmd(const char *cmdName, void (*cmdFunction)(void *), void *cmdArg
  */
 void USCP::checkStream(void)
 {
-    bool EOL = false;
+	bool EOL = false;
 	while (usb_serial_available())
 	{
 		char serialChar = usb_serial_getchar();
-    
-        // Backspace
-		if (strlen(strBuffer) && serialChar == '\x08') 
+
+		// Backspace
+		if (strlen(strBuffer) && serialChar == '\b')
 		{
-			strBuffer[strlen(strBuffer) - 1] = '\0'; // Chop last char from array
-			
-			SerialUSB.printf("\033[1D"); // Move left
-			SerialUSB.printf("%c", ' '); // Overwrite char with a space
-            SerialUSB.printf("\033[1D"); // Move back left
+			// Chop last char from array and move index back
+			strBuffer[strBufferIndex--] = '\0';
+
+			SerialUSB.printf("%c", '\b'); // Move left
+			SerialUSB.printf("%c", ' ');  // Overwrite char with a space
+			SerialUSB.printf("%c", '\b'); // Move back left
 			continue;
 		}
 
-        // Echo printable characters
+		// Echo printable characters
 		if (((unsigned)serialChar - 0x20) < 0x5F)
 		{
 			SerialUSB.printf("%c", serialChar);
 		}
 
-        // Line feed
+		// Line feed
 		if (serialChar == '\n')
 		{
-            // Set flag, print EOL sequence, and exit loop
+			// Set flag, print EOL sequence, and exit loop
 			EOL = true;
 			SerialUSB.printf("\r\n");
 			break;
 		}
 
-        // Carriage return or carriage return + line feed combo
+		// Carriage return or carriage return + line feed combo
 		if (serialChar == '\r')
 		{
 			EOL = true;
@@ -95,18 +96,17 @@ void USCP::checkStream(void)
 			break;
 		}
 
-        strBuffer[strBufferIndex++] = serialChar;
-		strBuffer[strBufferIndex] = '\0'; 
+		strBuffer[strBufferIndex++] = serialChar;
+		strBuffer[strBufferIndex] = '\0';
 	}
 
 	if (EOL)
 	{
-        parseCmdString();
+		parseCmdString();
 		strBuffer[0] = '\0';
 		strBufferIndex = 0;
 	}
 }
-
 
 /**
  * @brief Break string apart at the spaces and check if the first word is a known command. Call the associated function 
@@ -157,14 +157,12 @@ void USCP::listCmds(void)
 	{
 		SerialUSB.printf("%s\r\n", cmd[i].cmdName);
 	}
-
 }
 
 /**
  * @brief Thread-safe strtok clone... strtok_r but without custom delimitors?
  * 
  * @param inputString 
- * @param spaceString 
  * @param scratchPad 
  * @return char* 
  */

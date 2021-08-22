@@ -42,8 +42,6 @@ private:
 	audio_block_t *inputQueueArray[2];
 	static audio_block_t *leftAudioBuffer[2];
 	static audio_block_t *rightAudioBuffer[2];
-	// static audio_block_t *leftAudioLSB;
-	// static audio_block_t *rightAudioLSB;
 	static audio_block_t silentAudio;
 
 	static DMAChannel eDMA;
