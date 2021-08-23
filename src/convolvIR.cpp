@@ -34,11 +34,14 @@ void __attribute__((section(".flashmem"))) ConvolvIR::init(void)
 	}
 
 	arm_fill_f32(0.0f, multAccum, 512);
+	arm_fill_f32(0.0f, cmplxProduct, 512);
 	arm_fill_f32(0.0f, audioConvolutionBuffer, 512);
 	arm_fill_f32(0.0f, leftAudioData, 128);
 	arm_fill_f32(0.0f, leftAudioPrevSample, 128);
 	arm_fill_f32(0.0f, rightAudioData, 128);
 	arm_fill_f32(0.0f, rightAudioPrevSample, 128);
+
+	memset(inputQueueArray, 0, sizeof(inputQueueArray));
 }
 
 /**

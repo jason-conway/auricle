@@ -52,6 +52,7 @@ void __attribute__((section(".flashmem"))) SPDIFTx::init(void)
 	SPDIF_STC |= SPDIF_STC_TX_ALL_CLK_EN; // SPDIF Transfer Clock Enable
 
 	memset(&silentAudio, 0, sizeof(silentAudio));
+	memset(inputQueueArray, 0, sizeof(inputQueueArray));
 
 	for (size_t i = 0; i < 2; i++)
 	{

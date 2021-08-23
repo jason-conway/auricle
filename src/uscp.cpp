@@ -16,7 +16,7 @@ USCP::USCP()
 	init();
 }
 
-void USCP::init(void)
+void __attribute__((section(".flashmem"))) USCP::init(void)
 {
 	memset(strBuffer, 0, sizeof(strBuffer));
 }
@@ -28,7 +28,7 @@ void USCP::init(void)
  * @param cmdFunction Function to be called upon receiving the command
  * @param cmdArg Argument to be passed to cmdFunction
  */
-void USCP::newCmd(const char *cmdName, void (*cmdFunction)(void *), void *cmdArg)
+void __attribute__((section(".flashmem"))) USCP::newCmd(const char *cmdName, void (*cmdFunction)(void *), void *cmdArg)
 {
 	cmd = (command_t *)realloc(cmd, (numCmds + 1) * sizeof(command_t));
 
@@ -47,7 +47,7 @@ void USCP::newCmd(const char *cmdName, void (*cmdFunction)(void *), void *cmdArg
  * https://en.wikipedia.org/wiki/C0_and_C1_control_codes
  * 
  */
-void USCP::checkStream(void)
+void __attribute__((section(".flashmem"))) USCP::checkStream(void)
 {
 	bool EOL = false;
 	while (usb_serial_available())
@@ -113,7 +113,7 @@ void USCP::checkStream(void)
  * if known, otherwise call the function associated with cmd[1]. 
  * 
  */
-void USCP::parseCmdString(void)
+void __attribute__((section(".flashmem"))) USCP::parseCmdString(void)
 {
 	char *command = tokenize(strBuffer, &scratchPad);
 	if (command != NULL)
@@ -141,7 +141,7 @@ void USCP::parseCmdString(void)
  * 
  * @return char* 
  */
-char *USCP::getArg(void)
+char __attribute__((section(".flashmem"))) *USCP::getArg(void)
 {
 	return tokenize(NULL, &scratchPad);
 }
@@ -150,7 +150,7 @@ char *USCP::getArg(void)
  * @brief Print registered commands
  * 
  */
-void USCP::listCmds(void)
+void __attribute__((section(".flashmem"))) USCP::listCmds(void)
 {
 	SerialUSB.printf("Available Commands: \r\n");
 	for (size_t i = 2; i < numCmds; i++)
@@ -166,7 +166,7 @@ void USCP::listCmds(void)
  * @param scratchPad 
  * @return char* 
  */
-char *USCP::tokenize(char *__restrict inputString, char **__restrict scratchPad)
+char __attribute__((section(".flashmem"))) *USCP::tokenize(char *__restrict inputString, char **__restrict scratchPad)
 {
 	if (!(inputString) && (!(inputString = *scratchPad)))
 	{
