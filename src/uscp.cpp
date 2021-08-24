@@ -30,9 +30,22 @@ void __attribute__((section(".flashmem"))) USCP::init(void)
  */
 void __attribute__((section(".flashmem"))) USCP::newCmd(const char *cmdName, void (*cmdFunction)(void *), void *cmdArg)
 {
-	cmd = (command_t *)realloc(cmd, (numCmds + 1) * sizeof(command_t));
+	if (command_t *cmdPtr = static_cast<command_t *>(realloc(cmd, (numCmds + 1) * sizeof(command_t))))
+	{
+		cmd = cmdPtr; // Update cmd with the new address
+	}
+	else
+	{
+		free(cmd); // realloc failed to allocate new memory but didn't deallocate the original memory
+		SerialUSB.printf("Error: realloc failure\r\n");
+		return;
+	}
 
-	strncpy(cmd[numCmds].cmdName, cmdName, commandLength);
+	if (snprintf(cmd[numCmds].cmdName, commandLength, "%s", cmdName) < 0)
+	{
+		SerialUSB.printf("Error: snprintf failure\r\n");
+		return;
+	}
 
 	cmd[numCmds].cmdFunction = cmdFunction;
 	cmd[numCmds].cmdArg = cmdArg;
@@ -52,18 +65,22 @@ void __attribute__((section(".flashmem"))) USCP::checkStream(void)
 	bool EOL = false;
 	while (usb_serial_available())
 	{
-		char serialChar = usb_serial_getchar();
+		char serialChar = static_cast<char>(usb_serial_getchar());
 
 		// Backspace
-		if (strlen(strBuffer) && serialChar == '\b')
+		if (serialChar == '\b')
 		{
-			// Chop last char from array and move index back
-			strBuffer[strBufferIndex--] = '\0';
+			if (strBufferIndex > 0) // Something backspace-able
+			{
+				// Chop last char from array and move index back
+				strBuffer[strBufferIndex--] = '\0';
 
-			SerialUSB.printf("%c", '\b'); // Move left
-			SerialUSB.printf("%c", ' ');  // Overwrite char with a space
-			SerialUSB.printf("%c", '\b'); // Move back left
-			continue;
+				SerialUSB.printf("%c", '\b'); // Move left
+				SerialUSB.printf("%c", ' ');  // Overwrite char with a space
+				SerialUSB.printf("%c", '\b'); // Move back left
+				usb_serial_flush_output();
+			}
+			continue; // Don't add \b to the string buffer
 		}
 
 		// Echo printable characters
