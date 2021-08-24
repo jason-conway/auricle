@@ -26,21 +26,16 @@ ConvolvIR::ConvolvIR(void) : AudioStream(2, inputQueueArray)
  */
 void __attribute__((section(".flashmem"))) ConvolvIR::init(void)
 {
-	for (size_t i = 0; i < partitionCount; i++)
-	{
-		arm_fill_f32(0.0f, convolutionPartitions[i], 512);
-		arm_fill_f32(0.0f, hrtf.leftTF[i], 512);
-		arm_fill_f32(0.0f, hrtf.rightTF[i], 512);
-	}
-
-	arm_fill_f32(0.0f, multAccum, 512);
-	arm_fill_f32(0.0f, cmplxProduct, 512);
-	arm_fill_f32(0.0f, audioConvolutionBuffer, 512);
-	arm_fill_f32(0.0f, leftAudioData, 128);
-	arm_fill_f32(0.0f, leftAudioPrevSample, 128);
-	arm_fill_f32(0.0f, rightAudioData, 128);
-	arm_fill_f32(0.0f, rightAudioPrevSample, 128);
-
+	memset(convolutionPartitions, 0, sizeof(convolutionPartitions));
+	memset(hrtf.leftTF, 0, sizeof(hrtf.leftTF));
+	memset(hrtf.rightTF, 0, sizeof(hrtf.rightTF));
+	memset(multAccum, 0, sizeof(multAccum));
+	memset(cmplxProduct, 0, sizeof(cmplxProduct));
+	memset(audioConvolutionBuffer, 0, sizeof(audioConvolutionBuffer));
+	memset(leftAudioData, 0, sizeof(leftAudioData));
+	memset(leftAudioPrevSample, 0, sizeof(leftAudioPrevSample));
+	memset(rightAudioData, 0, sizeof(rightAudioData));
+	memset(rightAudioPrevSample, 0, sizeof(rightAudioPrevSample));
 	memset(inputQueueArray, 0, sizeof(inputQueueArray));
 }
 
@@ -53,7 +48,7 @@ void __attribute__((section(".flashmem"))) ConvolvIR::init(void)
  * @param hrir 
  * @return int8_t 
  */
-void __attribute__((section(".flashmem"))) ConvolvIR::convertIR(const HRIR *hrir) 
+void __attribute__((section(".flashmem"))) ConvolvIR::convertIR(const HRIR *hrir)
 {
 	audioReady = false;
 
@@ -67,7 +62,7 @@ void __attribute__((section(".flashmem"))) ConvolvIR::convertIR(const HRIR *hrir
 
 			for (size_t k = 0; k < partitionSize; k++)
 			{
-				impulsePartitionBuffer[2 * k + 256] = (!(i)) ? (hrir->leftIR[128 * j + k]) : (hrir->rightIR[128 * j + k]);		
+				impulsePartitionBuffer[2 * k + 256] = (!(i)) ? (hrir->leftIR[128 * j + k]) : (hrir->rightIR[128 * j + k]);
 			}
 
 			arm_cfft_f32(&arm_cfft_sR_f32_len256, impulsePartitionBuffer, ForwardFFT, 1);
@@ -83,14 +78,14 @@ void __attribute__((section(".flashmem"))) ConvolvIR::convertIR(const HRIR *hrir
  * 
  */
 void ConvolvIR::convolve(void)
-{	
+{
 	for (size_t i = 0; i < 2; i++) // Two iterations - left and right
 	{
 		arm_fill_f32(0.0f, multAccum, 512); // Clear out previous data in accumulator
 
 		int16_t shiftIndex = partitionIndex; // Set new starting point for sliding convolutionPartitions over the FFT of the impulse response
 
-		multiplyAccumulate((!(i)) ? hrtf.leftTF : hrtf.rightTF, shiftIndex); 
+		multiplyAccumulate((!(i)) ? hrtf.leftTF : hrtf.rightTF, shiftIndex);
 
 		arm_cfft_f32(&arm_cfft_sR_f32_len256, multAccum, InverseFFT, 1);
 
@@ -115,7 +110,7 @@ void ConvolvIR::convolve(void)
  * @param hrtf 
  * @param shiftIndex 
  */
-void __attribute__ ((optimize("-O1"))) ConvolvIR::multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex)
+void __attribute__((optimize("-O1"))) ConvolvIR::multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex)
 {
 	for (size_t i = 0; i < partitionCount; i++)
 	{
@@ -130,6 +125,7 @@ void __attribute__ ((optimize("-O1"))) ConvolvIR::multiplyAccumulate(float32_t (
 
 void ConvolvIR::setPassthrough(bool passthrough)
 {
+	audioReady = passthrough;
 	audioPassthrough = passthrough;
 }
 
@@ -143,7 +139,7 @@ void ConvolvIR::update(void)
 	{
 		return;
 	}
-	
+
 	audio_block_t *leftAudio = receiveWritable(leftChannel);
 	audio_block_t *rightAudio = receiveWritable(rightChannel);
 
@@ -158,13 +154,12 @@ void ConvolvIR::update(void)
 			return;
 		}
 
-		// Disable interrupts while computing the convolution 
-		__asm__ volatile("CPSID i":::"memory");
+		// Disable interrupts while computing the convolution
+		__asm__ volatile("CPSID i" ::: "memory");
 
 		// Use float32 for higher precision intermediate calculations
 		arm_q15_to_float(leftAudio->data, leftAudioData, 128);
 		arm_q15_to_float(rightAudio->data, rightAudioData, 128);
-		
 
 		for (size_t i = 0; i < partitionSize; i++)
 		{
@@ -187,7 +182,7 @@ void ConvolvIR::update(void)
 		arm_cfft_f32(&arm_cfft_sR_f32_len256, audioConvolutionBuffer, ForwardFFT, 1);
 
 		arm_copy_f32(audioConvolutionBuffer, convolutionPartitions[partitionIndex], 512);
-		
+
 		convolve();
 
 		// Increase counter by 1 until we've reached the number of partitions, then reset counter to 0
@@ -199,9 +194,9 @@ void ConvolvIR::update(void)
 		// Transmit left and right audio to the output
 		transmit(leftAudio, leftChannel);
 		transmit(rightAudio, rightChannel);
-		
+
 		// Re-enable interrupts
-		__asm__ volatile("CPSIE i":::"memory");
+		__asm__ volatile("CPSIE i" ::: "memory");
 
 		release(leftAudio);
 		release(rightAudio);
