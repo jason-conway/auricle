@@ -26,26 +26,26 @@ TPD3IO::TPD3IO(void)
  */
 void __attribute__((section(".flashmem"))) TPD3IO::init(void)
 {
-	volatile uint32_t *gpio_pow_reg = &GPIO_DR_SIG_OUT;
-	volatile uint32_t *gpio_sel_reg = &GPIO_DR_SIG_OUT;
-	volatile uint32_t *gpio_usb_reg = &GPIO_DR_SIG_IN;
-	volatile uint32_t *gpio_opt_reg = &GPIO_DR_SIG_IN;
-	volatile uint32_t *gpio_rca_reg = &GPIO_DR_SIG_IN;
-	volatile uint32_t *gpio_bnc_reg = &GPIO_DR_SIG_IN;
+	volatile uint32_t *gpio_pow_reg = static_cast<volatile uint32_t *>(&GPIO_DR_SIG_OUT);
+	volatile uint32_t *gpio_sel_reg = static_cast<volatile uint32_t *>(&GPIO_DR_SIG_OUT);
+	volatile uint32_t *gpio_usb_reg = static_cast<volatile uint32_t *>(&GPIO_DR_SIG_IN);
+	volatile uint32_t *gpio_opt_reg = static_cast<volatile uint32_t *>(&GPIO_DR_SIG_IN);
+	volatile uint32_t *gpio_rca_reg = static_cast<volatile uint32_t *>(&GPIO_DR_SIG_IN);
+	volatile uint32_t *gpio_bnc_reg = static_cast<volatile uint32_t *>(&GPIO_DR_SIG_IN);
 
-	volatile uint32_t *gpio_pow_mux = &GPIO_IOMUX_SIG_POW;
-	volatile uint32_t *gpio_sel_mux = &GPIO_IOMUX_SIG_SEL;
-	volatile uint32_t *gpio_usb_mux = &GPIO_IOMUX_SIG_USB;
-	volatile uint32_t *gpio_opt_mux = &GPIO_IOMUX_SIG_OPT;
-	volatile uint32_t *gpio_rca_mux = &GPIO_IOMUX_SIG_RCA;
-	volatile uint32_t *gpio_bnc_mux = &GPIO_IOMUX_SIG_BNC;
+	volatile uint32_t *gpio_pow_mux = static_cast<volatile uint32_t *>(&GPIO_IOMUX_SIG_POW);
+	volatile uint32_t *gpio_sel_mux = static_cast<volatile uint32_t *>(&GPIO_IOMUX_SIG_SEL);
+	volatile uint32_t *gpio_usb_mux = static_cast<volatile uint32_t *>(&GPIO_IOMUX_SIG_USB);
+	volatile uint32_t *gpio_opt_mux = static_cast<volatile uint32_t *>(&GPIO_IOMUX_SIG_OPT);
+	volatile uint32_t *gpio_rca_mux = static_cast<volatile uint32_t *>(&GPIO_IOMUX_SIG_RCA);
+	volatile uint32_t *gpio_bnc_mux = static_cast<volatile uint32_t *>(&GPIO_IOMUX_SIG_BNC);
 
-	volatile uint32_t *gpio_pow_pad = &GPIO_PAD_SIG_POW;
-	volatile uint32_t *gpio_sel_pad = &GPIO_PAD_SIG_SEL;
-	volatile uint32_t *gpio_usb_pad = &GPIO_PAD_SIG_USB;
-	volatile uint32_t *gpio_opt_pad = &GPIO_PAD_SIG_OPT;
-	volatile uint32_t *gpio_rca_pad = &GPIO_PAD_SIG_RCA;
-	volatile uint32_t *gpio_bnc_pad = &GPIO_PAD_SIG_BNC;
+	volatile uint32_t *gpio_pow_pad = static_cast<volatile uint32_t *>(&GPIO_PAD_SIG_POW);
+	volatile uint32_t *gpio_sel_pad = static_cast<volatile uint32_t *>(&GPIO_PAD_SIG_SEL);
+	volatile uint32_t *gpio_usb_pad = static_cast<volatile uint32_t *>(&GPIO_PAD_SIG_USB);
+	volatile uint32_t *gpio_opt_pad = static_cast<volatile uint32_t *>(&GPIO_PAD_SIG_OPT);
+	volatile uint32_t *gpio_rca_pad = static_cast<volatile uint32_t *>(&GPIO_PAD_SIG_RCA);
+	volatile uint32_t *gpio_bnc_pad = static_cast<volatile uint32_t *>(&GPIO_PAD_SIG_BNC);
 
 	*(gpio_pow_reg + 1) |= GPIO_MASK_SIG_POW;
 	*(gpio_pow_pad) = IOMUXC_PAD_DSE(7);
@@ -192,6 +192,7 @@ uint8_t __attribute__((section(".flashmem"))) TPD3IO::pllStatus(void)
  */
 void __attribute__((section(".flashmem"))) TPD3IO::constDelay(void)
 {
-	uint32_t startingCycleCount = (*(volatile uint32_t *)0xE0001004);
-	while ((*(volatile uint32_t *)0xE0001004) - startingCycleCount < (uint32_t)99000000); // 250ms
+	uint32_t startingCycleCount = *reinterpret_cast<volatile uint32_t *>(0xE0001004);
+	while (*reinterpret_cast<volatile uint32_t *>(0xE0001004) - startingCycleCount < (uint32_t)99000000)
+		; // 250ms
 }
