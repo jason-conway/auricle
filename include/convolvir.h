@@ -27,7 +27,6 @@ typedef struct HRIR
 	float32_t *rightIR;
 } HRIR;
 
-
 class ConvolvIR : public AudioStream
 {
 public:	
@@ -76,6 +75,9 @@ private:
 	float32_t rightAudioPrevSample[128]; // Right channel N-1
 	float32_t multAccum[512];
 	float32_t cmplxProduct[512];
+
+	
+
 };
 
 extern ConvolvIR convolvIR;

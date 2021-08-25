@@ -10,7 +10,7 @@
  */
 
 #include "ash.h"
-#include "IR.h"
+#include "HRIR.h"
 
 USCP uscp;
 TPD3IO tpd3io;
@@ -55,19 +55,39 @@ void ASH::setAngle(void *)
 	char *arg = uscp.getArg();
 	if (arg == NULL)
 	{
-		SerialUSB.printf("Incorrect syntax\r\n");
+		SerialUSB.printf("Error: incorrect syntax\r\n");
 	}
 	else
 	{
-		uint16_t angle = (uint16_t)atoi(arg);
+		uint16_t angle = static_cast<uint16_t>(atoi(arg));
 		SerialUSB.printf("Setting angle: %d degrees\r\n", angle);
-		angle = (uint16_t)floor(angle / 45);
-
-		HRIR hrir;
-		hrir.leftIR = IR_LUT[angle][0];
-		hrir.rightIR = IR_LUT[angle][1];
-		convolvIR.convertIR(&hrir);
 		
+		HRIR hrir;
+		switch (angle)
+		{
+		case 0:
+			hrir.leftIR = HRIR_0[0];
+			hrir.rightIR = HRIR_0[1];
+			break;
+		case 36:
+			hrir.leftIR = HRIR_36[0];
+			hrir.rightIR = HRIR_36[1];
+			break;
+		case 72:
+			hrir.leftIR = HRIR_72[0];
+			hrir.rightIR = HRIR_72[1];
+			break;
+		case 108:
+			hrir.leftIR = HRIR_108[0];
+			hrir.rightIR = HRIR_108[1];
+			break;
+		
+		default:
+			SerialUSB.printf("Not yet\r\n");
+			return;
+		}
+
+		convolvIR.convertIR(&hrir);
 		SerialUSB.printf("Done\r\n");
 	}
 }
