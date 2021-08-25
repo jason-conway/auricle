@@ -9,8 +9,7 @@
  * 
  */
 
-#ifndef TPD3IO_H
-#define TPD3IO_H
+#pragma once
 
 #include "auricle.h"
 #include "imxrt.h"
@@ -95,5 +94,3 @@ private:
     
     D3Status d3status;
 };
-
-#endif

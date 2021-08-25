@@ -9,8 +9,7 @@
  * 
  */
 
-#ifndef ConvolvIR_H
-#define ConvolvIR_H
+#pragma once
 
 #include <Audio.h>
 #include "auricle.h"
@@ -81,5 +80,3 @@ private:
 };
 
 extern ConvolvIR convolvIR;
-
-#endif

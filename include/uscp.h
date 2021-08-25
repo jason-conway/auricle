@@ -9,8 +9,7 @@
  * 
  */
 
-#ifndef USCP_H
-#define USCP_H
+#pragma once
 
 #include "auricle.h"
 #include <Stream.h>
@@ -55,5 +54,3 @@ private:
 	command_t *cmd = nullptr; 
 	uint8_t numCmds = 0;
 };
-
-#endif

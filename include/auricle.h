@@ -9,8 +9,7 @@
  * 
  */
 
-#ifndef AURICLE_H
-#define AURICLE_H
+#pragma once
 
 #include <WProgram.h>
 #include <pins_arduino.h>
@@ -23,5 +22,3 @@ enum Stereo
 
 
 #define IR_SAMPLES 8192
-
-#endif

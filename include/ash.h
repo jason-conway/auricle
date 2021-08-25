@@ -9,8 +9,7 @@
  * 
  */
 
-#ifndef ASH_H
-#define ASH_H
+#pragma once
 
 #include "auricle.h"
 #include "uscp.h"
@@ -42,5 +41,3 @@ private:
     static void hostname(void *);
     
 };
-
-#endif

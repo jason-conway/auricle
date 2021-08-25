@@ -9,8 +9,7 @@
  * 
  */
 
-#ifndef SPDIFTx_H
-#define SPDIFTx_H
+#pragma once
 
 #include <WProgram.h>
 #include <AudioStream.h>
@@ -60,5 +59,3 @@ private:
 	};
 
 };
-
-#endif
