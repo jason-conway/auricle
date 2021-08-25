@@ -119,7 +119,7 @@ void __attribute__((section(".flashmem"))) USCP::checkStream(void)
 
 	if (EOL)
 	{
-		parseCmdString();
+		this->parseCmdString();
 		strBuffer[0] = '\0';
 		strBufferIndex = 0;
 	}
@@ -132,7 +132,7 @@ void __attribute__((section(".flashmem"))) USCP::checkStream(void)
  */
 void __attribute__((section(".flashmem"))) USCP::parseCmdString(void)
 {
-	char *command = tokenize(strBuffer, &scratchPad);
+	char *command = this->tokenize(strBuffer, &scratchPad);
 	if (command != NULL)
 	{
 		bool cmdKnown = false;
@@ -160,7 +160,7 @@ void __attribute__((section(".flashmem"))) USCP::parseCmdString(void)
  */
 char __attribute__((section(".flashmem"))) *USCP::getArg(void)
 {
-	return tokenize(NULL, &scratchPad);
+	return this->tokenize(NULL, &scratchPad);
 }
 
 /**
