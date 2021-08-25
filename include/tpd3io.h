@@ -59,6 +59,12 @@ public:
     void currentStatus(void);
 
 private:
+    void init(void);
+    uint8_t readGPIO(void);
+    void checkAll(void);
+    uint8_t pllStatus(void);
+    void constDelay(void);
+
     enum D3InputMode
     {
         ModeNull,
@@ -88,20 +94,6 @@ private:
     } D3Status;
     
     D3Status d3status;
-
-    void init(void);
-
-    uint8_t readGPIO(void);
-    void checkAll(void);
-    uint8_t pllStatus(void);
-    uint8_t checkPower(void);
-    uint8_t checkSigUSB(void);
-    uint8_t checkSigOPT(void);
-    uint8_t checkSigRCA(void);
-    uint8_t checkSigBNC(void);
-
-    void constDelay(void);
-
 };
 
 #endif

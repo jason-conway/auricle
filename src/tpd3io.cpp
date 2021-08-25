@@ -73,6 +73,7 @@ void __attribute__((section(".flashmem"))) TPD3IO::init(void)
 
 	d3status.mode = ModeNull;
 	d3status.power = PowerNull;
+	this->checkAll();
 }
 
 /**
@@ -109,33 +110,26 @@ void __attribute__((section(".flashmem"))) TPD3IO::switchInput(void)
  */
 void __attribute__((section(".flashmem"))) TPD3IO::currentStatus(void)
 {
-	if (d3status.power == PowerOn)
+	this->checkAll();
+	SerialUSB.printf("Current Input: ");
+	switch (d3status.mode)
 	{
-		this->checkAll();
-		SerialUSB.printf("Current Input: ");
-		switch (d3status.mode)
-		{
-		case ModeUSB:
-			SerialUSB.printf("USB\r\n");
-			break;
-		case ModeOPT:
-			SerialUSB.printf("Optical\r\n");
-			SerialUSB.printf("PLL is %s\r\n", (this->pllStatus() == Locked) ? "Locked" : "Not Locked");
-			break;
-		case ModeRCA:
-			SerialUSB.printf("RCA\r\n");
-			break;
-		case ModeBNC:
-			SerialUSB.printf("BNC\r\n");
-			break;
-		default:
-			SerialUSB.printf("Mode Unknown\r\n");
-			break;
-		}
-	}
-	else
-	{
-		SerialUSB.printf("D3 is not powered on\r\n");
+	case ModeUSB:
+		SerialUSB.printf("USB\r\n");
+		break;
+	case ModeOPT:
+		SerialUSB.printf("Optical\r\n");
+		SerialUSB.printf("PLL is %s\r\n", (this->pllStatus() == Locked) ? "locked" : "not locked");
+		break;
+	case ModeRCA:
+		SerialUSB.printf("RCA\r\n");
+		break;
+	case ModeBNC:
+		SerialUSB.printf("BNC\r\n");
+		break;
+	default:
+		SerialUSB.printf("NULL\r\n");
+		break;
 	}
 }
 
@@ -148,22 +142,27 @@ void __attribute__((section(".flashmem"))) TPD3IO::checkAll(void)
 	if (GPIO_PSR_SIG_IN & GPIO_MASK_SIG_USB)
 	{
 		d3status.mode = ModeUSB;
+		d3status.power = PowerOn;
 	}
 	else if (GPIO_PSR_SIG_IN & GPIO_MASK_SIG_OPT)
 	{
 		d3status.mode = ModeOPT;
+		d3status.power = PowerOn;
 	}
 	else if (GPIO_PSR_SIG_IN & GPIO_MASK_SIG_RCA)
 	{
 		d3status.mode = ModeRCA;
+		d3status.power = PowerOn;
 	}
 	else if (GPIO_PSR_SIG_IN & GPIO_MASK_SIG_BNC)
 	{
 		d3status.mode = ModeBNC;
+		d3status.power = PowerOn;
 	}
 	else
 	{
 		d3status.mode = ModeNull;
+		d3status.power = PowerNull;
 	}
 }
 
@@ -193,6 +192,5 @@ uint8_t __attribute__((section(".flashmem"))) TPD3IO::pllStatus(void)
 void __attribute__((section(".flashmem"))) TPD3IO::constDelay(void)
 {
 	uint32_t startingCycleCount = *reinterpret_cast<volatile uint32_t *>(0xE0001004);
-	while (*reinterpret_cast<volatile uint32_t *>(0xE0001004) - startingCycleCount < (uint32_t)99000000)
-		; // 250ms
+	while (*reinterpret_cast<volatile uint32_t *>(0xE0001004) - startingCycleCount < (uint32_t)99000000); // 250ms
 }
