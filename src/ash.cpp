@@ -10,7 +10,6 @@
  */
 
 #include "ash.h"
-#include "HRIR.h"
 
 USCP uscp;
 TPD3IO tpd3io;
@@ -27,9 +26,9 @@ void ASH::init(void)
 
 	uscp.newCmd("toggle-power", this->togglePower, NULL);
 	uscp.newCmd("switch-input", this->switchInput, NULL);
-	uscp.newCmd("passthrough", this->audioPassthrough, NULL);
-	uscp.newCmd("get-status", this->currentStatus, NULL);
-	uscp.newCmd("set-angle", this->setAngle, NULL);
+	uscp.newCmd("pttoggle", this->audioPassthrough, NULL);
+	uscp.newCmd("status", this->currentStatus, NULL);
+	uscp.newCmd("sangle", this->setAngle, NULL);
 	uscp.newCmd("audiomemory", this->audioMemory, NULL);
 	uscp.newCmd("reboot", this->reboot, NULL);
 	uscp.newCmd("clear", this->clear, NULL);
@@ -61,33 +60,7 @@ void ASH::setAngle(void *)
 	{
 		uint16_t angle = static_cast<uint16_t>(atoi(arg));
 		SerialUSB.printf("Setting angle: %d degrees\r\n", angle);
-		
-		HRIR hrir;
-		switch (angle)
-		{
-		case 0:
-			hrir.leftIR = HRIR_0[0];
-			hrir.rightIR = HRIR_0[1];
-			break;
-		case 36:
-			hrir.leftIR = HRIR_36[0];
-			hrir.rightIR = HRIR_36[1];
-			break;
-		case 72:
-			hrir.leftIR = HRIR_72[0];
-			hrir.rightIR = HRIR_72[1];
-			break;
-		case 108:
-			hrir.leftIR = HRIR_108[0];
-			hrir.rightIR = HRIR_108[1];
-			break;
-		
-		default:
-			SerialUSB.printf("Not yet\r\n");
-			return;
-		}
-
-		convolvIR.convertIR(&hrir);
+		convolvIR.convertIR(angle / 3.6);						
 		SerialUSB.printf("Done\r\n");
 	}
 }
@@ -133,26 +106,7 @@ void ASH::audioMemory(void *)
 
 void ASH::audioPassthrough(void *)
 {
-	char *arg = uscp.getArg();
-	if (arg == NULL)
-	{
-		SerialUSB.printf("Incorrect syntax\r\n");
-	}
-	else if (strncmp(arg, "true", 16) == 0)
-	{
-		convolvIR.setPassthrough(true);
-		SerialUSB.printf("Audio Passthough Enabled\r\n");
-	}
-	else if (strncmp(arg, "false", 16) == 0)
-	{
-		convolvIR.setPassthrough(false);
-		SerialUSB.printf("Audio Passthough Disabled\r\n");
-	}
-	else
-	{
-		SerialUSB.printf("Unknown argument: %s\r\n", arg);
-		SerialUSB.printf("Options: [true], [false]\r\n");
-	}
+	SerialUSB.printf("Audio Passthough %s\r\n", convolvIR.togglePassthrough() ? "Enabled" : "Disabled");
 }
 
 void ASH::memoryUse(void *)
