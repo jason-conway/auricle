@@ -10,6 +10,7 @@
  */
 
 #include "convolvIR.h"
+#include "tablIR.h"
 
 /**
  * @brief Construct a new ConvolvIR::ConvolvIR object
@@ -24,19 +25,9 @@ ConvolvIR::ConvolvIR(void) : AudioStream(2, inputQueueArray)
  * @brief Clear out buffers
  * 
  */
-void __attribute__((section(".flashmem"))) ConvolvIR::init(void)
+void ConvolvIR::init(void)
 {
-	memset(convolutionPartitions, 0, sizeof(convolutionPartitions));
-	memset(hrtf.leftTF, 0, sizeof(hrtf.leftTF));
-	memset(hrtf.rightTF, 0, sizeof(hrtf.rightTF));
-	memset(multAccum, 0, sizeof(multAccum));
-	memset(cmplxProduct, 0, sizeof(cmplxProduct));
-	memset(audioConvolutionBuffer, 0, sizeof(audioConvolutionBuffer));
-	memset(leftAudioData, 0, sizeof(leftAudioData));
-	memset(leftAudioPrevSample, 0, sizeof(leftAudioPrevSample));
-	memset(rightAudioData, 0, sizeof(rightAudioData));
-	memset(rightAudioPrevSample, 0, sizeof(rightAudioPrevSample));
-	memset(inputQueueArray, 0, sizeof(inputQueueArray));
+	clearAllArrays();
 }
 
 /**
@@ -48,10 +39,12 @@ void __attribute__((section(".flashmem"))) ConvolvIR::init(void)
  * @param hrir 
  * @return int8_t 
  */
-void __attribute__((section(".flashmem"))) ConvolvIR::convertIR(const HRIR *hrir)
+void ConvolvIR::convertIR(uint8_t irIndex)
 {
 	audioReady = false;
-
+	clearAllArrays();
+	partitionIndex = 0;
+	
 	for (size_t i = 0; i < 2; i++)
 	{
 		float32_t impulsePartitionBuffer[512];
@@ -61,8 +54,8 @@ void __attribute__((section(".flashmem"))) ConvolvIR::convertIR(const HRIR *hrir
 			arm_fill_f32(0.0f, impulsePartitionBuffer, 512);
 
 			for (size_t k = 0; k < partitionSize; k++)
-			{
-				impulsePartitionBuffer[2 * k + 256] = (!(i)) ? (hrir->leftIR[128 * j + k]) : (hrir->rightIR[128 * j + k]);
+			{				
+				impulsePartitionBuffer[2 * k + 256] = irTable[2 * IR_SAMPLES * irIndex + IR_SAMPLES * i + 128 * j + k];
 			}
 
 			arm_cfft_f32(&arm_cfft_sR_f32_len256, impulsePartitionBuffer, ForwardFFT, 1);
@@ -123,10 +116,25 @@ void __attribute__((optimize("-O1"))) ConvolvIR::multiplyAccumulate(float32_t (*
 	}
 }
 
-void ConvolvIR::setPassthrough(bool passthrough)
+bool ConvolvIR::togglePassthrough(void)
 {
-	audioReady = passthrough;
-	audioPassthrough = passthrough;
+	audioPassthrough = !audioPassthrough;
+	return audioPassthrough;
+}
+
+void ConvolvIR::clearAllArrays(void)
+{
+	memset(convolutionPartitions, 0, sizeof(convolutionPartitions));
+	memset(hrtf.leftTF, 0, sizeof(hrtf.leftTF));
+	memset(hrtf.rightTF, 0, sizeof(hrtf.rightTF));
+	memset(multAccum, 0, sizeof(multAccum));
+	memset(cmplxProduct, 0, sizeof(cmplxProduct));
+	memset(audioConvolutionBuffer, 0, sizeof(audioConvolutionBuffer));
+	memset(leftAudioData, 0, sizeof(leftAudioData));
+	memset(leftAudioPrevSample, 0, sizeof(leftAudioPrevSample));
+	memset(rightAudioData, 0, sizeof(rightAudioData));
+	memset(rightAudioPrevSample, 0, sizeof(rightAudioPrevSample));
+	memset(inputQueueArray, 0, sizeof(inputQueueArray));
 }
 
 /**
@@ -170,12 +178,9 @@ void ConvolvIR::update(void)
 			// Fill the last half of audioConvolutionBuffer with the current audio data
 			audioConvolutionBuffer[2 * i + 256] = leftAudioData[i];	 // [256] [258] [260] ... [510]
 			audioConvolutionBuffer[2 * i + 257] = rightAudioData[i]; // [257] [259] [261] ... [511]
-
-			// Copy the current audio data into buffers for next sample overlap-and-save
-			//leftAudioPrevSample[i] = leftAudioData[i];
-			//rightAudioPrevSample[i] = rightAudioData[i];
 		}
 
+		// Update copy samples
 		arm_copy_f32(leftAudioData, leftAudioPrevSample, 128);
 		arm_copy_f32(rightAudioData, rightAudioPrevSample, 128);
 
