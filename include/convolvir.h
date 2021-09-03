@@ -16,15 +16,9 @@
 #include <arm_math.h>
 #include <arm_const_structs.h>
 
-typedef struct HRIR
-{
-	float32_t *leftIR;
-	float32_t *rightIR;
-} HRIR;
-
 class ConvolvIR : public AudioStream
 {
-public:	
+public:
 	ConvolvIR(void);
 	virtual void update(void);
 	bool togglePassthrough(void);
@@ -58,10 +52,10 @@ private:
 	void multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex);
 	void clearAllArrays(void);
 
-	volatile bool audioReady = false;
-	volatile bool audioPassthrough = false;
-	
-	uint16_t partitionIndex = 0;
+	volatile bool audioReady;
+	volatile bool audioPassthrough;
+
+	uint16_t partitionIndex;
 	float32_t convolutionPartitions[partitionCount][512];
 	float32_t audioConvolutionBuffer[512];
 
@@ -71,7 +65,6 @@ private:
 	float32_t rightAudioPrevSample[128]; // Right channel N-1
 	float32_t multAccum[512];
 	float32_t cmplxProduct[512];
-	
 };
 
 extern ConvolvIR convolvIR;

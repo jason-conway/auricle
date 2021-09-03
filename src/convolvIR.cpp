@@ -10,7 +10,7 @@
  */
 
 #include "convolvIR.h"
-#include "tablIR.h"
+#include "tablIR.hpp"
 
 /**
  * @brief Construct a new ConvolvIR::ConvolvIR object
@@ -28,6 +28,9 @@ ConvolvIR::ConvolvIR(void) : AudioStream(2, inputQueueArray)
 void ConvolvIR::init(void)
 {
 	clearAllArrays();
+	partitionIndex = 0;
+	audioReady = false;
+	audioPassthrough = false;
 }
 
 /**
@@ -36,8 +39,7 @@ void ConvolvIR::init(void)
  * number of forward FFTs that need to be computed. Since multiple convolutions are summed together, the overall 
  * number of inverse FFTs is also cut down.
  * 
- * @param hrir 
- * @return int8_t 
+ * @param irIndex 
  */
 void ConvolvIR::convertIR(uint8_t irIndex)
 {
