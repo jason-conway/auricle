@@ -101,8 +101,8 @@ void SPDIFTx::dmaISR(void)
  */
 void SPDIFTx::update(void)
 {
-	audio_block_t *leftAudio = receiveReadOnly(STEREO_LEFT);
-	audio_block_t *rightAudio = receiveReadOnly(STEREO_RIGHT);
+	audio_block_t *leftAudio = receiveReadOnly(leftChannel);
+	audio_block_t *rightAudio = receiveReadOnly(rightChannel);
 
 	__asm__ volatile("CPSID i" ::: "memory");
 

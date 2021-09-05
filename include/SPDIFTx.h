@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include <WProgram.h>
+#include "auricle.h"
 #include <AudioStream.h>
 #include <DMAChannel.h>
 
