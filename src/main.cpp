@@ -37,8 +37,8 @@ int main(void)
 	
 	ash.init();
 
-	static __attribute__ ((section(".dmabuffers"), used)) audio_block_t allocatedAudioMemory[20]; 
-	AudioStream::initialize_memory(allocatedAudioMemory, 20);
+	static __attribute__ ((section(".dmabuffers"), used)) audio_block_t allocatedAudioMemory[16]; 
+	AudioStream::initialize_memory(allocatedAudioMemory, 16);
 	
 	while (1)
 	{

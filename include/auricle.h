@@ -11,8 +11,12 @@
 
 #pragma once
 
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <WProgram.h>
-#include <pins_arduino.h>
 
 enum Stereo
 {
@@ -20,5 +24,3 @@ enum Stereo
 	rightChannel
 };
 
-
-#define IR_SAMPLES 8192

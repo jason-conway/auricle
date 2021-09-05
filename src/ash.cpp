@@ -4,9 +4,9 @@
  * @brief Auricle Shell
  * @version 0.1
  * @date 2021-08-08
- * 
+ *
  * @copyright Copyright (c) 2021 Jason Conway. All rights reserved.
- * 
+ *
  */
 
 #include "ash.h"
@@ -51,17 +51,16 @@ void ASH::togglePower(void *)
 
 void ASH::setAngle(void *)
 {
-	char *arg = uscp.getArg();
-	if (arg == NULL)
-	{
-		SerialUSB.printf("Error: incorrect syntax\r\n");
-	}
-	else
+	if (char *arg = uscp.getArg())
 	{
 		uint16_t angle = static_cast<uint16_t>(atoi(arg));
 		SerialUSB.printf("Setting angle: %d degrees\r\n", angle);
-		convolvIR.convertIR(angle / 3.6);						
+		convolvIR.convertIR(__builtin_round(static_cast<float32_t>(angle) / 3.6));
 		SerialUSB.printf("Done\r\n");
+	}
+	else
+	{
+		SerialUSB.printf("Error: incorrect syntax\r\n");
 	}
 }
 
@@ -90,12 +89,12 @@ void ASH::audioMemory(void *)
 	else if (strncmp(arg, "current", 16) == 0)
 	{
 		float32_t usage = AudioStream::memory_used;
-		Serial.printf("Memory usage: %.2f%%\n", usage);
+		Serial.printf("Memory usage: %.2f%%\r\n", usage);
 	}
 	else if (strncmp(arg, "max", 16) == 0)
 	{
 		float32_t usage = AudioStream::memory_used_max;
-		Serial.printf("Maximum memory usage: %.2f%%\n", usage);
+		Serial.printf("Maximum memory usage: %.2f%%\r\n", usage);
 	}
 	else
 	{
@@ -144,8 +143,9 @@ void ASH::hostname(void *)
 
 void ASH::motd(void)
 {
+	this->clear(NULL);
 	SerialUSB.printf("Auricle Shell\r\n");
 	SerialUSB.printf("Version 0.1\r\n");
 	SerialUSB.printf("Copyright (c) 2021 Jason Conway\r\n\r\n");
-	hostname(NULL);
+	this->hostname(NULL);
 }
