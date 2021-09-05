@@ -68,7 +68,7 @@ void __attribute__((section(".flashmem"))) SPDIFTx::init(void)
  */
 void SPDIFTx::dmaISR(void)
 {
-	uint32_t txOffset = getTxOffset((uint32_t)&txBuffer[0], 2048);
+	uint32_t txOffset = getTxOffset(reinterpret_cast<uint32_t>(&txBuffer[0]), 2048);
 
 	// Clear Interrupt Request Register (pg 138)
 	DMA_CINT = eDMA.channel; // Disable interrupt request for this DMA channel
@@ -79,7 +79,7 @@ void SPDIFTx::dmaISR(void)
 	audio_block_t *leftAudio = (leftAudioBuffer[0]) ? leftAudioBuffer[0] : &silentAudio;
 	audio_block_t *rightAudio = (rightAudioBuffer[0]) ? rightAudioBuffer[0] : &silentAudio;
 
-	dmaCopyAudio(txBaseAddress, txStopAddress, (const int16_t *)(leftAudio->data), (const int16_t *)(rightAudio->data));
+	dmaCopyAudio(txBaseAddress, txStopAddress, const_cast<const int16_t *>(leftAudio->data), const_cast<const int16_t *>(rightAudio->data));
 
 	if (leftAudio != &silentAudio && rightAudio != &silentAudio)
 	{
@@ -167,11 +167,13 @@ void SPDIFTx::update(void)
  * @note With for loop: 16.90 uS
  * 
  */
-inline void __attribute__((optimize("-O1"))) dmaCopyAudio(int32_t *pTx, const int32_t *pTxStop, const int16_t *leftAudioData, const int16_t *rightAudioData)
+
+#pragma GCC optimize ("01")
+inline void __attribute__((always_inline)) dmaCopyAudio(int32_t *pTx, const int32_t *pTxStop, const int16_t *leftAudioData, const int16_t *rightAudioData)
 {
 	do
 	{
-		SCB_CACHE_DCCIMVAC = (uintptr_t)pTx; // D-cache clean and invalidate by MVA to PoC
+		SCB_CACHE_DCCIMVAC = reinterpret_cast<uint32_t>(pTx); // D-cache clean and invalidate by MVA to PoC
 		__asm__ volatile("dsb");             // Sync execution stream
 		*pTx++ = (*leftAudioData++) << 8;
 		*pTx++ = (*rightAudioData++) << 8;
@@ -195,7 +197,7 @@ inline uint32_t SPDIFTx::getTxOffset(uint32_t txSourceAddress, uint32_t sourceBu
 {
 	// Set an offset when SADDR is in the second half of the major loop
 	uint32_t txOffset = 0;
-	uint32_t SADDR = (uint32_t)(eDMA.TCD->SADDR);
+	uint32_t SADDR = reinterpret_cast<uint32_t>(eDMA.TCD->SADDR);
 	if (SADDR < (txSourceAddress + sourceBufferSize / 2))
 	{
 		txOffset = 0x0100; // Apply 256 byte pointer offset
