@@ -27,8 +27,9 @@ public:
 private:
 	audio_block_t *inputQueueArray[2];
 
-	enum Partition
+	enum Lengths
 	{
+		ImpulseSamples = 8192,
 		partitionSize = 128,
 		partitionCount = 64
 	};
@@ -46,18 +47,17 @@ private:
 	} HRTF;
 
 	HRTF hrtf;
-
+	
 	void init(void);
 	void convolve(void);
 	void multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex);
 	void clearAllArrays(void);
 
-	volatile bool audioReady;
 	volatile bool audioPassthrough;
 
 	uint16_t partitionIndex;
-	float32_t convolutionPartitions[partitionCount][512];
-	float32_t audioConvolutionBuffer[512];
+	float32_t frequencyDelayLine[partitionCount][512];
+	float32_t overlappedAudio[512];
 
 	float32_t leftAudioData[128];		 // Left channel audio data as floating point vector
 	float32_t leftAudioPrevSample[128];	 // Left channel N-1
