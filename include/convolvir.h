@@ -50,7 +50,6 @@ private:
 	
 	void init(void);
 	void convolve(void);
-	void multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex);
 	void clearAllArrays(void);
 
 	volatile bool audioPassthrough;
@@ -58,13 +57,14 @@ private:
 	uint16_t partitionIndex;
 	float32_t frequencyDelayLine[partitionCount][512];
 	float32_t overlappedAudio[512];
+	float32_t multAccum[512];
+	float32_t cmplxProduct[512];
 
 	float32_t leftAudioData[128];		 // Left channel audio data as floating point vector
 	float32_t leftAudioPrevSample[128];	 // Left channel N-1
 	float32_t rightAudioData[128];		 // Right channel audio data as floating point vector
 	float32_t rightAudioPrevSample[128]; // Right channel N-1
-	float32_t multAccum[512];
-	float32_t cmplxProduct[512];
+
 };
 
 extern ConvolvIR convolvIR;

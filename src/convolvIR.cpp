@@ -12,7 +12,7 @@
 #include "convolvIR.h"
 #include "tablIR.h"
 
-#pragma GCC optimize ("O1") // Out-performs Ofast
+#pragma GCC optimize ("O3") // Out-performs Ofast
 
 /**
  * @brief Construct a new ConvolvIR::ConvolvIR object
@@ -74,13 +74,24 @@ void ConvolvIR::convertIR(uint8_t irIndex)
  */
 void ConvolvIR::convolve(void)
 {
+	arm_cfft_f32(&arm_cfft_sR_f32_len256, overlappedAudio, ForwardFFT, 1);
+	arm_copy_f32(overlappedAudio, frequencyDelayLine[partitionIndex], 512);
+
 	for (size_t i = 0; i < 2; i++) // Two iterations - left and right
 	{
 		arm_fill_f32(0.0f, multAccum, 512); // Clear out previous data in accumulator
 
 		int16_t shiftIndex = partitionIndex; // Set new starting point for sliding convolutionPartitions over the FFT of the impulse response
 
-		multiplyAccumulate(!(i) ? hrtf.leftTF : hrtf.rightTF, shiftIndex);
+		for (size_t j = 0; j < partitionCount; j++)
+		{
+			arm_cmplx_mult_cmplx_f32(frequencyDelayLine[shiftIndex], !(i) ? hrtf.leftTF[j] : hrtf.rightTF[j], cmplxProduct, 256);
+
+			arm_add_f32(multAccum, cmplxProduct, multAccum, 512);
+
+			// Decrease counter by 1 until we've reached zero, then restart
+			shiftIndex = ((shiftIndex - 1) < 0) ? (partitionCount - 1) : (shiftIndex - 1);
+		}
 
 		arm_cfft_f32(&arm_cfft_sR_f32_len256, multAccum, InverseFFT, 1);
 
@@ -96,25 +107,6 @@ void ConvolvIR::convolve(void)
 				rightAudioData[j] = multAccum[2 * j + 1];
 			}
 		}
-	}
-}
-
-/**
- * @brief Complex-by-complex multiplication of HRTF and audio input samples
- * 
- * @param hrtf 
- * @param shiftIndex 
- */
-void ConvolvIR::multiplyAccumulate(float32_t (*hrtf)[512], int16_t shiftIndex)
-{
-	for (size_t i = 0; i < partitionCount; i++)
-	{
-		arm_cmplx_mult_cmplx_f32(frequencyDelayLine[shiftIndex], hrtf[i], cmplxProduct, 256);
-
-		arm_add_f32(multAccum, cmplxProduct, multAccum, 512);
-
-		// Decrease counter by 1 until we've reached zero, then restart
-		shiftIndex = ((shiftIndex - 1) < 0) ? (partitionCount - 1) : (shiftIndex - 1);
 	}
 }
 
@@ -186,10 +178,6 @@ void ConvolvIR::update(void)
 			leftAudioPrevSample[i] = leftAudioData[i];
 			rightAudioPrevSample[i] = rightAudioData[i];
 		}
-
-		arm_cfft_f32(&arm_cfft_sR_f32_len256, overlappedAudio, ForwardFFT, 1);
-
-		arm_copy_f32(overlappedAudio, frequencyDelayLine[partitionIndex], 512);
 
 		convolve();
 
