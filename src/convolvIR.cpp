@@ -12,7 +12,7 @@
 #include "convolvIR.h"
 #include "tablIR.h"
 
-#pragma GCC optimize ("03")
+#pragma GCC optimize ("O1") // Out-performs Ofast
 
 /**
  * @brief Construct a new ConvolvIR::ConvolvIR object
@@ -164,6 +164,8 @@ void ConvolvIR::update(void)
 			return;
 		}
 
+		uint32_t startCycles = ARM_DWT_CYCCNT;
+
 		// Disable interrupts while computing the convolution
 		__asm__ volatile("CPSID i" ::: "memory");
 
@@ -180,11 +182,10 @@ void ConvolvIR::update(void)
 			// Fill the last half of audioConvolutionBuffer with the current audio data
 			overlappedAudio[2 * i + 256] = leftAudioData[i];	 // [256] [258] [260] ... [510]
 			overlappedAudio[2 * i + 257] = rightAudioData[i]; // [257] [259] [261] ... [511]
+			
+			leftAudioPrevSample[i] = leftAudioData[i];
+			rightAudioPrevSample[i] = rightAudioData[i];
 		}
-
-		// Update copy samples
-		arm_copy_f32(leftAudioData, leftAudioPrevSample, 128);
-		arm_copy_f32(rightAudioData, rightAudioPrevSample, 128);
 
 		arm_cfft_f32(&arm_cfft_sR_f32_len256, overlappedAudio, ForwardFFT, 1);
 
@@ -194,6 +195,10 @@ void ConvolvIR::update(void)
 
 		// Increase counter by 1 until we've reached the number of partitions, then reset counter to 0
 		partitionIndex = ((partitionIndex + 1) >= partitionCount) ? 0 : (partitionIndex + 1);
+		if (partitionIndex % 5)
+		{
+			SerialUSB.printf("Cycles: %d\r\n", ARM_DWT_CYCCNT - startCycles);
+		}
 		
 		arm_float_to_q15(leftAudioData, leftAudio->data, 128);
 		arm_float_to_q15(rightAudioData, rightAudio->data, 128);
