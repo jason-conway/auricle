@@ -97,11 +97,17 @@ void __attribute__((section(".flashmem"))) TPD3IO::togglePower(void)
  */
 void __attribute__((section(".flashmem"))) TPD3IO::switchInput(void)
 {
-	SerialUSB.printf("Current Input: %s\r\n", d3status.mode);
-	GPIO6_DR_SET = GPIO_MASK_SIG_SEL;
-	this->constDelay();
-	GPIO6_DR_CLEAR = GPIO_MASK_SIG_SEL;
-	SerialUSB.printf("New Input: %s\r\n", d3status.mode);
+	uint8_t startingMode = d3status.mode;
+	
+	SerialUSB.printf("Switching to mode: %s\r\n", (startingMode == ModeOPT) ? "USB" : "OPT");
+	do
+	{
+		GPIO6_DR_SET = GPIO_MASK_SIG_SEL;
+		this->constDelay();
+		GPIO6_DR_CLEAR = GPIO_MASK_SIG_SEL;
+	} while (d3status.mode != (startingMode == ModeOPT) ? ModeUSB : ModeOPT);
+		
+	SerialUSB.printf("Done\r\n");
 }
 
 /**
@@ -120,12 +126,6 @@ void __attribute__((section(".flashmem"))) TPD3IO::currentStatus(void)
 	case ModeOPT:
 		SerialUSB.printf("Optical\r\n");
 		SerialUSB.printf("PLL is %s\r\n", (this->pllStatus() == Locked) ? "locked" : "not locked");
-		break;
-	case ModeRCA:
-		SerialUSB.printf("RCA\r\n");
-		break;
-	case ModeBNC:
-		SerialUSB.printf("BNC\r\n");
 		break;
 	default:
 		SerialUSB.printf("NULL\r\n");

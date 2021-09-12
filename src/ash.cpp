@@ -24,8 +24,8 @@ void ASH::init(void)
 	uscp.newCmd("hostname", this->hostname, NULL); // Set shell name
 	uscp.newCmd("unknown", this->unknownCommand, NULL);
 
-	uscp.newCmd("toggle-power", this->togglePower, NULL);
-	uscp.newCmd("switch-input", this->switchInput, NULL);
+	uscp.newCmd("togglepower", this->togglePower, NULL);
+	uscp.newCmd("togglemode", this->switchInput, NULL);
 	uscp.newCmd("pttoggle", this->audioPassthrough, NULL);
 	uscp.newCmd("status", this->currentStatus, NULL);
 	uscp.newCmd("sangle", this->setAngle, NULL);
@@ -81,26 +81,8 @@ void ASH::listCommands(void *)
 
 void ASH::audioMemory(void *)
 {
-	char *arg = uscp.getArg();
-	if (arg == NULL)
-	{
-		SerialUSB.printf("Incorrect syntax\r\n");
-	}
-	else if (strncmp(arg, "current", 16) == 0)
-	{
-		float32_t usage = AudioStream::memory_used;
-		Serial.printf("Memory usage: %.2f%%\r\n", usage);
-	}
-	else if (strncmp(arg, "max", 16) == 0)
-	{
-		float32_t usage = AudioStream::memory_used_max;
-		Serial.printf("Maximum memory usage: %.2f%%\r\n", usage);
-	}
-	else
-	{
-		SerialUSB.printf("Unknown argument: %s\r\n", arg);
-		SerialUSB.printf("Options: [current], [max]\r\n");
-	}
+	SerialUSB.printf("Active memory usage: %.2u%%\r\n", AudioStream::memory_used);
+	SerialUSB.printf("Maximum memory usage: %.2u%%\r\n", AudioStream::memory_used_max);
 }
 
 void ASH::audioPassthrough(void *)
