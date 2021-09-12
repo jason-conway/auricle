@@ -1,5 +1,5 @@
 /**
- * @file uscp.cpp
+ * @file subshell.cpp
  * @author Jason Conway (jpc@jasonconway.dev)
  * @brief USB Serial Command Parser
  * @version 0.1
@@ -9,14 +9,14 @@
  * 
  */
 
-#include "uscp.h"
+#include "subshell.h"
 
-USCP::USCP()
+Subshell::Subshell()
 {
 	init();
 }
 
-void __attribute__((section(".flashmem"))) USCP::init(void)
+void __attribute__((section(".flashmem"))) Subshell::init(void)
 {
 	memset(strBuffer, 0, sizeof(strBuffer));
 }
@@ -28,7 +28,7 @@ void __attribute__((section(".flashmem"))) USCP::init(void)
  * @param cmdFunction Function to be called upon receiving the command
  * @param cmdArg Argument to be passed to cmdFunction
  */
-void __attribute__((section(".flashmem"))) USCP::newCmd(const char *cmdName, void (*cmdFunction)(void *), void *cmdArg)
+void __attribute__((section(".flashmem"))) Subshell::newCmd(const char *cmdName, void (*cmdFunction)(void *), void *cmdArg)
 {
 	if (command_t *cmdPtr = static_cast<command_t *>(realloc(cmd, (numCmds + 1) * sizeof(command_t))))
 	{
@@ -60,7 +60,7 @@ void __attribute__((section(".flashmem"))) USCP::newCmd(const char *cmdName, voi
  * https://en.wikipedia.org/wiki/C0_and_C1_control_codes
  * 
  */
-void __attribute__((section(".flashmem"))) USCP::checkStream(void)
+void __attribute__((section(".flashmem"))) Subshell::checkStream(void)
 {
 	bool EOL = false;
 	while (usb_serial_available())
@@ -130,7 +130,7 @@ void __attribute__((section(".flashmem"))) USCP::checkStream(void)
  * if known, otherwise call the function associated with cmd[1]. 
  * 
  */
-void __attribute__((section(".flashmem"))) USCP::parseCmdString(void)
+void __attribute__((section(".flashmem"))) Subshell::parseCmdString(void)
 {
 	char *command = this->tokenize(strBuffer, &scratchPad);
 	if (command != NULL)
@@ -158,7 +158,7 @@ void __attribute__((section(".flashmem"))) USCP::parseCmdString(void)
  * 
  * @return char* 
  */
-char __attribute__((section(".flashmem"))) *USCP::getArg(void)
+char __attribute__((section(".flashmem"))) *Subshell::getArg(void)
 {
 	return this->tokenize(NULL, &scratchPad);
 }
@@ -167,7 +167,7 @@ char __attribute__((section(".flashmem"))) *USCP::getArg(void)
  * @brief Print registered commands
  * 
  */
-void __attribute__((section(".flashmem"))) USCP::listCmds(void)
+void __attribute__((section(".flashmem"))) Subshell::listCmds(void)
 {
 	SerialUSB.printf("Available Commands: \r\n");
 	for (size_t i = 2; i < numCmds; i++)
@@ -183,7 +183,7 @@ void __attribute__((section(".flashmem"))) USCP::listCmds(void)
  * @param scratchPad 
  * @return char* 
  */
-char __attribute__((section(".flashmem"))) *USCP::tokenize(char *inputString, char **scratchPad)
+char __attribute__((section(".flashmem"))) *Subshell::tokenize(char *inputString, char **scratchPad)
 {
 	if (!(inputString) && (!(inputString = *scratchPad)))
 	{

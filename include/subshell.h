@@ -1,5 +1,5 @@
 /**
- * @file uscp.h
+ * @file subshell.h
  * @author Jason Conway (jpc@jasonconway.dev)
  * @brief 
  * @version 0.1
@@ -16,10 +16,10 @@
 #include <string.h>
 #include <usb_serial.h>
 
-class USCP
+class Subshell
 {
 public:
-	USCP(void);              
+	Subshell(void);              
 	
 	void newCmd(const char *cmdName, void (*cmdFunction)(void *), void *cmdArg);
 	void checkStream(void);

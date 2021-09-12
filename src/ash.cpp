@@ -11,7 +11,7 @@
 
 #include "ash.h"
 
-USCP uscp;
+Subshell subshell;
 TPD3IO tpd3io;
 
 ASH::ASH(void)
@@ -21,26 +21,26 @@ ASH::ASH(void)
 
 void ASH::init(void)
 {
-	uscp.newCmd("hostname", this->hostname, NULL); // Set shell name
-	uscp.newCmd("unknown", this->unknownCommand, NULL);
+	subshell.newCmd("hostname", this->hostname, NULL); // Set shell name
+	subshell.newCmd("unknown", this->unknownCommand, NULL);
 
-	uscp.newCmd("togglepower", this->togglePower, NULL);
-	uscp.newCmd("togglemode", this->switchInput, NULL);
-	uscp.newCmd("pttoggle", this->audioPassthrough, NULL);
-	uscp.newCmd("status", this->currentStatus, NULL);
-	uscp.newCmd("sangle", this->setAngle, NULL);
-	uscp.newCmd("audiomemory", this->audioMemory, NULL);
-	uscp.newCmd("reboot", this->reboot, NULL);
-	uscp.newCmd("clear", this->clear, NULL);
-	uscp.newCmd("memuse", this->memoryUse, NULL);
-	uscp.newCmd("lscmd", this->listCommands, NULL);
+	subshell.newCmd("togglepower", this->togglePower, NULL);
+	subshell.newCmd("togglemode", this->switchInput, NULL);
+	subshell.newCmd("pttoggle", this->audioPassthrough, NULL);
+	subshell.newCmd("status", this->currentStatus, NULL);
+	subshell.newCmd("sangle", this->setAngle, NULL);
+	subshell.newCmd("audiomemory", this->audioMemory, NULL);
+	subshell.newCmd("reboot", this->reboot, NULL);
+	subshell.newCmd("clear", this->clear, NULL);
+	subshell.newCmd("memuse", this->memoryUse, NULL);
+	subshell.newCmd("lscmd", this->listCommands, NULL);
 
 	this->motd();
 }
 
 void ASH::execLoop(void)
 {
-	uscp.checkStream();
+	subshell.checkStream();
 }
 
 void ASH::togglePower(void *)
@@ -51,7 +51,7 @@ void ASH::togglePower(void *)
 
 void ASH::setAngle(void *)
 {
-	if (char *arg = uscp.getArg())
+	if (char *arg = subshell.getArg())
 	{
 		uint16_t angle = static_cast<uint16_t>(atoi(arg));
 		SerialUSB.printf("Setting angle: %d degrees\r\n", angle);
@@ -76,7 +76,7 @@ void ASH::currentStatus(void *)
 
 void ASH::listCommands(void *)
 {
-	uscp.listCmds();
+	subshell.listCmds();
 }
 
 void ASH::audioMemory(void *)
