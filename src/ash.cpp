@@ -11,7 +11,7 @@
 
 #include "ash.h"
 
-Subshell subshell;
+Subshell subshell(SerialUSB);
 TPD3IO tpd3io;
 
 ASH::ASH(void)
@@ -21,19 +21,19 @@ ASH::ASH(void)
 
 void ASH::init(void)
 {
-	subshell.newCmd("hostname", this->hostname, NULL); // Set shell name
-	subshell.newCmd("unknown", this->unknownCommand, NULL);
+	subshell.newCmd("hostname", "", this->hostname, NULL); // Set shell name
+	subshell.newCmd("unknown", "", this->unknownCommand, NULL);
 
-	subshell.newCmd("togglepower", this->togglePower, NULL);
-	subshell.newCmd("togglemode", this->switchInput, NULL);
-	subshell.newCmd("pttoggle", this->audioPassthrough, NULL);
-	subshell.newCmd("status", this->currentStatus, NULL);
-	subshell.newCmd("sangle", this->setAngle, NULL);
-	subshell.newCmd("audiomemory", this->audioMemory, NULL);
-	subshell.newCmd("reboot", this->reboot, NULL);
-	subshell.newCmd("clear", this->clear, NULL);
-	subshell.newCmd("memuse", this->memoryUse, NULL);
-	subshell.newCmd("lscmd", this->listCommands, NULL);
+	subshell.newCmd("togglepower", "Toggle power on the D3", this->togglePower, NULL);
+	subshell.newCmd("togglemode", "Toggle D3 input mode", this->switchInput, NULL);
+	subshell.newCmd("pttoggle", "Toggle audio passthrough", this->audioPassthrough, NULL);
+	subshell.newCmd("status", "Get status of the D3", this->currentStatus, NULL);
+	subshell.newCmd("sangle", "Set HRIR angle", this->setAngle, NULL);
+	subshell.newCmd("audiomemory", "View current and maximum audio memory", this->audioMemory, NULL);
+	subshell.newCmd("reboot", "Reboot Auricle", this->reboot, NULL);
+	subshell.newCmd("clear", "Clear screen", this->clear, NULL);
+	subshell.newCmd("memuse", "View amount of RAM free", this->memoryUse, NULL);
+	subshell.newCmd("lscmd", "List all commands", this->listCommands, NULL);
 
 	this->motd();
 }
@@ -43,8 +43,30 @@ void ASH::execLoop(void)
 	subshell.checkStream();
 }
 
+bool ASH::argHelp(void)
+{
+	if (char *arg = subshell.getArg())
+	{
+		if (strncmp(arg, "-h", 64) == 0)
+		{
+			subshell.showCmdHelp();
+		}
+		else
+		{
+			SerialUSB.printf("Error: incorrect syntax\r\n");
+		}
+		return true;
+	}
+	return false;
+}
+
 void ASH::togglePower(void *)
 {
+	if (argHelp())
+	{
+		return;
+	}
+
 	tpd3io.togglePower();
 	SerialUSB.printf("Done\r\n");
 }

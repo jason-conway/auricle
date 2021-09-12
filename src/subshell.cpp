@@ -11,24 +11,29 @@
 
 #include "subshell.h"
 
-Subshell::Subshell()
+Subshell::Subshell(Stream &ioStream)
 {
+	stream = &ioStream;
 	init();
 }
 
-void __attribute__((section(".flashmem"))) Subshell::init(void)
+void Subshell::init(void)
 {
 	memset(strBuffer, 0, sizeof(strBuffer));
+	strBufferIndex = 0;
+	numCmds = 0;
+	cmdIndex = -1;
 }
 
 /**
- * @brief Add a name and function pointer pair to the command table
+ * @brief Add a name, help / info, function pointer, and function argument set to the command table
  * 
- * @param cmdName Name tied to the command created
- * @param cmdFunction Function to be called upon receiving the command
- * @param cmdArg Argument to be passed to cmdFunction
+ * @param[in] cmdName Name tied to the command to be created
+ * @param[in] cmdHelp Null-terminated help string 
+ * @param[in] cmdFunction Function to be called upon receiving the command
+ * @param[in] cmdArg Argument to be passed to cmdFunction
  */
-void __attribute__((section(".flashmem"))) Subshell::newCmd(const char *cmdName, void (*cmdFunction)(void *), void *cmdArg)
+void Subshell::newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFunction)(void *), void *cmdArg)
 {
 	if (command_t *cmdPtr = static_cast<command_t *>(realloc(cmd, (numCmds + 1) * sizeof(command_t))))
 	{
@@ -37,13 +42,19 @@ void __attribute__((section(".flashmem"))) Subshell::newCmd(const char *cmdName,
 	else
 	{
 		free(cmd); // realloc failed to allocate new memory but didn't deallocate the original memory
-		SerialUSB.printf("Error: realloc failure\r\n");
+		stream->printf("Error: realloc failure\r\n");
 		return;
 	}
 
 	if (snprintf(cmd[numCmds].cmdName, commandLength, "%s", cmdName) < 0)
 	{
-		SerialUSB.printf("Error: snprintf failure\r\n");
+		stream->printf("Error: snprintf failure\r\n");
+		return;
+	}
+	
+	if (snprintf(cmd[numCmds].cmdHelp, helpLength, "%s", cmdHelp) < 0)
+	{
+		stream->printf("Error: snprintf failure\r\n");
 		return;
 	}
 
@@ -60,12 +71,12 @@ void __attribute__((section(".flashmem"))) Subshell::newCmd(const char *cmdName,
  * https://en.wikipedia.org/wiki/C0_and_C1_control_codes
  * 
  */
-void __attribute__((section(".flashmem"))) Subshell::checkStream(void)
+void Subshell::checkStream(void)
 {
-	bool EOL = false;
-	while (usb_serial_available())
+	bool EOL = false; // Flag is set true when \r or \n is found
+	while (stream->available())
 	{
-		char serialChar = static_cast<char>(usb_serial_getchar());
+		char serialChar = static_cast<char>(stream->read());
 
 		// Backspace
 		if (serialChar == '\b')
@@ -75,10 +86,10 @@ void __attribute__((section(".flashmem"))) Subshell::checkStream(void)
 				// Chop last char from array and move index back
 				strBuffer[strBufferIndex--] = '\0';
 
-				SerialUSB.printf("%c", '\b'); // Move left
-				SerialUSB.printf("%c", ' ');  // Overwrite char with a space
-				SerialUSB.printf("%c", '\b'); // Move back left
-				usb_serial_flush_output();
+				stream->printf("%c", '\b'); // Move left
+				stream->printf("%c", ' ');	// Overwrite char with a space
+				stream->printf("%c", '\b'); // Move back left
+				stream->flush();
 			}
 			continue; // Don't add \b to the string buffer
 		}
@@ -86,7 +97,7 @@ void __attribute__((section(".flashmem"))) Subshell::checkStream(void)
 		// Echo printable characters
 		if (((unsigned)serialChar - 0x20) < 0x5F)
 		{
-			SerialUSB.printf("%c", serialChar);
+			stream->printf("%c", serialChar);
 		}
 
 		// Line feed
@@ -94,7 +105,7 @@ void __attribute__((section(".flashmem"))) Subshell::checkStream(void)
 		{
 			// Set flag, print EOL sequence, and exit loop
 			EOL = true;
-			SerialUSB.printf("\r\n");
+			stream->printf("\r\n");
 			break;
 		}
 
@@ -102,12 +113,12 @@ void __attribute__((section(".flashmem"))) Subshell::checkStream(void)
 		if (serialChar == '\r')
 		{
 			EOL = true;
-			SerialUSB.printf("\r\n");
-			if (usb_serial_available())
+			stream->printf("\r\n");
+			if (stream->available())
 			{
-				if (usb_serial_peekchar() == '\n') // CR+LF
+				if (stream->peek() == '\n') // CR+LF
 				{
-					usb_serial_getchar();
+					stream->read();
 				}
 			}
 			break;
@@ -130,27 +141,28 @@ void __attribute__((section(".flashmem"))) Subshell::checkStream(void)
  * if known, otherwise call the function associated with cmd[1]. 
  * 
  */
-void __attribute__((section(".flashmem"))) Subshell::parseCmdString(void)
+void Subshell::parseCmdString(void)
 {
-	char *command = this->tokenize(strBuffer, &scratchPad);
-	if (command != NULL)
+	if (char *command = this->tokenize(strBuffer, &scratchPad))
 	{
-		bool cmdKnown = false;
+		bool cmdUnknown = true;
+		cmdIndex = 0;
 		for (size_t i = 2; i < numCmds; i++) // cmd[1] is the default, cmd[0] always runs
 		{
 			if (strncmp(command, cmd[i].cmdName, commandLength) == 0)
 			{
+				cmdIndex = i; // cmdIndex needs set before calling the function in case of help argument
 				(cmd[i].cmdFunction)(cmd[i].cmdArg);
-				cmdKnown = true;
+				cmdUnknown = false;
 				break;
 			}
 		}
-		if (!(cmdKnown))
+		if (cmdUnknown)
 		{
-			(cmd[1].cmdFunction)(cmd[1].cmdArg);
+			(cmd[1].cmdFunction)(cmd[1].cmdArg); // cmd[1] set as an unknown command handler
 		}
 	}
-	(cmd[0].cmdFunction)(cmd[0].cmdArg);
+	(cmd[0].cmdFunction)(cmd[0].cmdArg); // cmd[0] set to print hostname
 }
 
 /**
@@ -158,7 +170,7 @@ void __attribute__((section(".flashmem"))) Subshell::parseCmdString(void)
  * 
  * @return char* 
  */
-char __attribute__((section(".flashmem"))) *Subshell::getArg(void)
+char *Subshell::getArg(void)
 {
 	return this->tokenize(NULL, &scratchPad);
 }
@@ -167,23 +179,35 @@ char __attribute__((section(".flashmem"))) *Subshell::getArg(void)
  * @brief Print registered commands
  * 
  */
-void __attribute__((section(".flashmem"))) Subshell::listCmds(void)
+void Subshell::listCmds(void)
 {
-	SerialUSB.printf("Available Commands: \r\n");
+	stream->printf("Available Commands: \r\n");
 	for (size_t i = 2; i < numCmds; i++)
 	{
-		SerialUSB.printf("%s\r\n", cmd[i].cmdName);
+		stream->printf("%s\r\n", cmd[i].cmdName);
+	}
+}
+
+/**
+ * @brief Print command help for the previously matched command
+ * 
+ */
+void Subshell::showCmdHelp(void)
+{
+	if (cmdIndex) // Defaults 0, set on match
+	{
+		stream->printf("%s\r\n", cmd[cmdIndex].cmdHelp);
 	}
 }
 
 /**
  * @brief Thread-safe strtok clone... strtok_r but without custom delimitors?
  * 
- * @param inputString 
- * @param scratchPad 
+ * @param[in] inputString 
+ * @param[in] scratchPad 
  * @return char* 
  */
-char __attribute__((section(".flashmem"))) *Subshell::tokenize(char *inputString, char **scratchPad)
+char *Subshell::tokenize(char *inputString, char **scratchPad)
 {
 	if (!(inputString) && (!(inputString = *scratchPad)))
 	{

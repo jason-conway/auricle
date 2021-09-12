@@ -14,41 +14,46 @@
 #include "auricle.h"
 #include <Stream.h>
 #include <string.h>
-#include <usb_serial.h>
 
 class Subshell
 {
 public:
-	Subshell(void);              
+	Subshell(Stream &ioStream);              
 	
-	void newCmd(const char *cmdName, void (*cmdFunction)(void *), void *cmdArg);
+	void newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFunction)(void *), void *cmdArg);
 	void checkStream(void);
 	void listCmds(void);
+	void showCmdHelp(void);
 	char *getArg(void); 
 
 private:
 	void init(void);
-	char *tokenize(char *inputString, char **scratchPad);
 	void parseCmdString(void);
-	
+
+	char *tokenize(char *inputString, char **scratchPad);
+	char *scratchPad = nullptr; // Scratchpad for holding state
+
+	Stream *stream;
+
 	enum strLengths
 	{
 		bufferLength = 32,
-		commandLength = 24
+		commandLength = 24,
+		helpLength = 64
 	};
 
-	char *scratchPad = nullptr; // Scratchpad for tokenize
-	
 	char strBuffer[bufferLength]; 
-	uint8_t strBufferIndex = 0;   
+	uint8_t strBufferIndex;   
 	
 	struct command_t
 	{
 		char cmdName[commandLength]; 
+		char cmdHelp[helpLength];
 		void (*cmdFunction)(void*);
 		void *cmdArg;
 	};
 	
 	command_t *cmd = nullptr; 
-	uint8_t numCmds = 0;
+	uint8_t numCmds;
+	uint8_t cmdIndex;
 };

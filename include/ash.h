@@ -25,6 +25,8 @@ public:
 
 private:
     void motd(void);
+    static bool argHelp(void);
+
     static void togglePower(void *);
     static void setAngle(void *);
     static void switchInput(void *);
