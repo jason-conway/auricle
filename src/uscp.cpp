@@ -136,7 +136,7 @@ void __attribute__((section(".flashmem"))) USCP::parseCmdString(void)
 	if (command != NULL)
 	{
 		bool cmdKnown = false;
-		for (size_t i = 2; i < numCmds; i++) // cmd[0] is the default, cmd[1] always runs
+		for (size_t i = 2; i < numCmds; i++) // cmd[1] is the default, cmd[0] always runs
 		{
 			if (strncmp(command, cmd[i].cmdName, commandLength) == 0)
 			{
@@ -183,7 +183,7 @@ void __attribute__((section(".flashmem"))) USCP::listCmds(void)
  * @param scratchPad 
  * @return char* 
  */
-char __attribute__((section(".flashmem"))) *USCP::tokenize(char *__restrict inputString, char **__restrict scratchPad)
+char __attribute__((section(".flashmem"))) *USCP::tokenize(char *inputString, char **scratchPad)
 {
 	if (!(inputString) && (!(inputString = *scratchPad)))
 	{

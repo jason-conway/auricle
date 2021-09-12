@@ -28,9 +28,8 @@ public:
 
 private:
 	void init(void);
-	char *tokenize(char *__restrict inputString, char **__restrict scratchPad);
+	char *tokenize(char *inputString, char **scratchPad);
 	void parseCmdString(void);
-	void serialGetString(void);
 	
 	enum strLengths
 	{
@@ -40,7 +39,6 @@ private:
 
 	char *scratchPad = nullptr; // Scratchpad for tokenize
 	
-	String strIn;
 	char strBuffer[bufferLength]; 
 	uint8_t strBufferIndex = 0;   
 	
