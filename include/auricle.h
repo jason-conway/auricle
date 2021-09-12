@@ -24,3 +24,10 @@ enum Stereo
 	rightChannel
 };
 
+inline void msleep(uint32_t mS)
+{
+	uint32_t uS = 396000 * mS;
+	uint32_t startingCycleCount = *reinterpret_cast<volatile uint32_t *>(0xE0001004);
+	while (*reinterpret_cast<volatile uint32_t *>(0xE0001004) - startingCycleCount < uS);
+}
+

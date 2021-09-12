@@ -27,7 +27,7 @@ DMAChannel SPDIFTx::eDMA(false);
  */
 SPDIFTx::SPDIFTx(void) : AudioStream(2, inputQueueArray)
 {
-	init();
+	this->init();
 }
 
 /**
@@ -36,8 +36,8 @@ SPDIFTx::SPDIFTx(void) : AudioStream(2, inputQueueArray)
  */
 void __attribute__((section(".flashmem"))) SPDIFTx::init(void)
 {
-	dmaChannel = configureDMA();
-	configureSpdifRegisters();
+	dmaChannel = this->configureDMA();
+	this->configureSpdifRegisters();
 
 	eDMA.triggerAtHardwareEvent(DMAMUX_SOURCE_SPDIF_TX);
 
@@ -257,8 +257,7 @@ uint8_t SPDIFTx::configureDMA(void)
 
 void __attribute__((section(".flashmem"))) SPDIFTx::configureSpdifRegisters(void)
 {
-	uint32_t startingCount = ARM_DWT_CYCCNT;
-	while (ARM_DWT_CYCCNT - startingCount < 396000);
+	msleep(3);
 
 	// Analog Audio PLL control Register (pg 1110)
 	CCM_ANALOG_PLL_AUDIO =

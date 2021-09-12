@@ -4,16 +4,16 @@
  * @brief Spatial Audio for Arm Cortex-M7
  * @version 0.1
  * @date 2021-07-11
- * 
+ *
  * @copyright Copyright (c) 2021 Jason Conway. All rights reserved.
- * 
+ *
  */
 
 #include "tpd3io.h"
 
 /**
  * @brief Construct a new TPD3IO::TPD3IO object
- * 
+ *
  */
 TPD3IO::TPD3IO(void)
 {
@@ -22,7 +22,7 @@ TPD3IO::TPD3IO(void)
 
 /**
  * @brief Configure GPIO for interfacing with the D3
- * 
+ *
  */
 void __attribute__((section(".flashmem"))) TPD3IO::init(void)
 {
@@ -78,12 +78,12 @@ void __attribute__((section(".flashmem"))) TPD3IO::init(void)
 
 /**
  * @brief Write SIG_POW HIGH for 50ms to toggle power on the D3 board
- * 
+ *
  */
 void __attribute__((section(".flashmem"))) TPD3IO::togglePower(void)
 {
 	GPIO6_DR_SET = GPIO_MASK_SIG_POW;
-	this->constDelay();
+	msleep(250);
 	GPIO6_DR_CLEAR = GPIO_MASK_SIG_POW;
 
 	this->checkAll();
@@ -93,7 +93,7 @@ void __attribute__((section(".flashmem"))) TPD3IO::togglePower(void)
 
 /**
  * @brief Write SIG_SEL HIGH for 50ms switch inputs on the D3 board
- * 
+ *
  */
 void __attribute__((section(".flashmem"))) TPD3IO::switchInput(void)
 {
@@ -104,16 +104,16 @@ void __attribute__((section(".flashmem"))) TPD3IO::switchInput(void)
 	do
 	{
 		GPIO6_DR_SET = GPIO_MASK_SIG_SEL;
-		this->constDelay();
+		msleep(250);
 		GPIO6_DR_CLEAR = GPIO_MASK_SIG_SEL;
 	} while (d3status.mode != targetMode);
-		
+
 	SerialUSB.printf("Done\r\n");
 }
 
 /**
  * @brief Report current status of the D3
- * 
+ *
  */
 void __attribute__((section(".flashmem"))) TPD3IO::currentStatus(void)
 {
@@ -136,7 +136,7 @@ void __attribute__((section(".flashmem"))) TPD3IO::currentStatus(void)
 
 /**
  * @brief Check all D3 inputs and set d3status.mode
- * 
+ *
  */
 void __attribute__((section(".flashmem"))) TPD3IO::checkAll(void)
 {
@@ -169,14 +169,14 @@ void __attribute__((section(".flashmem"))) TPD3IO::checkAll(void)
 
 /**
  * @brief Check if the D3's PLL is locked
- * 
+ *
  * @return Returns D3_PLL_LOCKED if locked, otherwise D3_PLL_NOT_LOCKED
  */
 uint8_t __attribute__((section(".flashmem"))) TPD3IO::pllStatus(void)
 {
 	for (size_t i = 0; i < 8; i++) // 2 seconds
 	{
-		this->constDelay();
+		msleep(250);
 
 		if (!(GPIO_PSR_SIG_IN & GPIO_MASK_SIG_OPT)) // SIG_OPT remains HIGH >= 2 seconds
 		{
@@ -184,14 +184,4 @@ uint8_t __attribute__((section(".flashmem"))) TPD3IO::pllStatus(void)
 		}
 	}
 	return Locked;
-}
-
-/**
- * @brief Simple 250ms delay. Waits for 99,000,000 clock cycles
- * 
- */
-void __attribute__((section(".flashmem"))) TPD3IO::constDelay(void)
-{
-	uint32_t startingCycleCount = *reinterpret_cast<volatile uint32_t *>(0xE0001004);
-	while (*reinterpret_cast<volatile uint32_t *>(0xE0001004) - startingCycleCount < (uint32_t)99000000); // 250ms
 }

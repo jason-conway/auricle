@@ -31,8 +31,7 @@ int main(void)
 	
 	while (!(SerialUSB))
 	{
-		uint32_t startingCycleCount = (*(volatile uint32_t *)0xE0001004);
-		while ((*(volatile uint32_t *)0xE0001004) - startingCycleCount < (uint32_t)99000000);
+		msleep(100);
 	}
 	
 	ash.init();
