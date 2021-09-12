@@ -97,15 +97,16 @@ void __attribute__((section(".flashmem"))) TPD3IO::togglePower(void)
  */
 void __attribute__((section(".flashmem"))) TPD3IO::switchInput(void)
 {
-	uint8_t startingMode = d3status.mode;
-	
-	SerialUSB.printf("Switching to mode: %s\r\n", (startingMode == ModeOPT) ? "USB" : "OPT");
+	uint8_t currentMode = d3status.mode;
+	uint8_t targetMode = (currentMode == ModeOPT) ? ModeUSB : ModeOPT;
+
+	SerialUSB.printf("Switching to mode: %s\r\n", (currentMode == ModeOPT) ? "USB" : "OPT");
 	do
 	{
 		GPIO6_DR_SET = GPIO_MASK_SIG_SEL;
 		this->constDelay();
 		GPIO6_DR_CLEAR = GPIO_MASK_SIG_SEL;
-	} while (d3status.mode != (startingMode == ModeOPT) ? ModeUSB : ModeOPT);
+	} while (d3status.mode != targetMode);
 		
 	SerialUSB.printf("Done\r\n");
 }
