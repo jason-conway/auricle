@@ -21,8 +21,8 @@ ASH::ASH(void)
 
 void ASH::init(void)
 {
-	subshell.newCmd("hostname", "", this->hostname, NULL); // Set shell name
-	subshell.newCmd("unknown", "", this->unknownCommand, NULL);
+	subshell.newCmd("hostname", "", this->hostname, NULL); // Set hostname / prompt
+	subshell.newCmd("unknown", "", this->unknownCommand, NULL); 
 
 	subshell.newCmd("togglepower", "Toggle power on the D3", this->togglePower, NULL);
 	subshell.newCmd("togglemode", "Toggle D3 input mode", this->switchInput, NULL);
@@ -130,7 +130,8 @@ void ASH::reboot(void *)
 
 void ASH::unknownCommand(void *)
 {
-	SerialUSB.printf("ash> Unknown command\r\n");
+	ASH::hostname(NULL);
+	SerialUSB.printf("Unknown command\r\n");
 	fflush(stdout);
 }
 

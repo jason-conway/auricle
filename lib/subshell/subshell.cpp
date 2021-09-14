@@ -1,8 +1,8 @@
 /**
  * @file subshell.cpp
  * @author Jason Conway (jpc@jasonconway.dev)
- * @brief USB Serial Command Parser
- * @version 0.1
+ * @brief libSubshell
+ * @version 0.9
  * @date 2021-08-09
  * 
  * @copyright Copyright (c) 2021 Jason Conway. All rights reserved.
@@ -11,18 +11,31 @@
 
 #include "subshell.h"
 
+/**
+ * @brief Construct a new Subshell:: Subshell object
+ * 
+ * @param[in] ioStream 
+ */
 Subshell::Subshell(Stream &ioStream)
 {
 	stream = &ioStream;
 	init();
 }
 
+/**
+ * @brief Initialize class variables
+ * 
+ */
 void Subshell::init(void)
 {
 	memset(strBuffer, 0, sizeof(strBuffer));
 	strBufferIndex = 0;
+
+	cmd = nullptr;
 	numCmds = 0;
-	cmdIndex = -1;
+	cmdIndex = 0;
+
+	scratchPad = nullptr;
 }
 
 /**
@@ -33,7 +46,7 @@ void Subshell::init(void)
  * @param[in] cmdFunction Function to be called upon receiving the command
  * @param[in] cmdArg Argument to be passed to cmdFunction
  */
-void Subshell::newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFunction)(void *), void *cmdArg)
+Subshell_Status Subshell::newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFunction)(void *), void *cmdArg)
 {
 	if (command_t *cmdPtr = static_cast<command_t *>(realloc(cmd, (numCmds + 1) * sizeof(command_t))))
 	{
@@ -42,25 +55,24 @@ void Subshell::newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFuncti
 	else
 	{
 		free(cmd); // realloc failed to allocate new memory but didn't deallocate the original memory
-		stream->printf("Error: realloc failure\r\n");
-		return;
+		return SUBSHELL_REALLOC_FAILURE;
 	}
 
 	if (snprintf(cmd[numCmds].cmdName, commandLength, "%s", cmdName) < 0)
 	{
-		stream->printf("Error: snprintf failure\r\n");
-		return;
+		return SUBSHELL_SNPRINTF_FAILURE;
 	}
 	
 	if (snprintf(cmd[numCmds].cmdHelp, helpLength, "%s", cmdHelp) < 0)
 	{
-		stream->printf("Error: snprintf failure\r\n");
-		return;
+		return SUBSHELL_SNPRINTF_FAILURE;
 	}
 
 	cmd[numCmds].cmdFunction = cmdFunction;
 	cmd[numCmds].cmdArg = cmdArg;
 	numCmds++;
+
+	return SUBSHELL_SUCCESS;
 }
 
 /**
