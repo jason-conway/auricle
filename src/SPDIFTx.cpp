@@ -76,8 +76,8 @@ void SPDIFTx::dmaISR(void)
 	int32_t *txBaseAddress = &txBuffer[0] + txOffset;
 	const int32_t *txStopAddress = &txBuffer[0] + txOffset + 256;
 
-	audio_block_t *leftAudio = (leftAudioBuffer[0]) ? leftAudioBuffer[0] : &silentAudio;
-	audio_block_t *rightAudio = (rightAudioBuffer[0]) ? rightAudioBuffer[0] : &silentAudio;
+	audio_block_t *leftAudio = (leftAudioBuffer[0]) ?: &silentAudio;
+	audio_block_t *rightAudio = (rightAudioBuffer[0]) ?: &silentAudio;
 
 	dmaCopyAudio(txBaseAddress, txStopAddress, (const int16_t *)(leftAudio->data), (const int16_t *)(rightAudio->data));
 
