@@ -11,30 +11,32 @@
 
 #pragma once
 
-#include <WProgram.h>
-#include <Stream.h>
+#include <stdlib.h>
 #include <string.h>
+#include <Stream.h>
 
-enum Subshell_Status 
-{
-	SUBSHELL_REALLOC_FAILURE = -2,
-	SUBSHELL_SNPRINTF_FAILURE = -1,
-	SUBSHELL_SUCCESS
-
-};
+#define LDFLASH __attribute__((section(".flashmem")))
 
 class Subshell
 {
-public:
-	Subshell(Stream &ioStream);              
+public: 
+	Subshell(Stream &ioStream);
+	~Subshell();         
 
-	Subshell_Status newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFunction)(void *), void *cmdArg);
-	Subshell_Status setPrompt(const char *shellPrompt, void (*cmdFunction)(void *), void *cmdArg);
+	void newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFunction)(void *), void *cmdArg);
 
-	void checkStream(void);
+	void run(void);
 	void listCmds(void);
-	void showCmdHelp(void);
+	void showHelp(void);
 	char *getArg(void); 
+
+	enum Subshell_Status 
+	{
+		SUBSHELL_REALLOC_FAILURE = -2,
+		SUBSHELL_SNPRINTF_FAILURE,
+		SUBSHELL_SUCCESS
+	};
+	Subshell_Status status = SUBSHELL_SUCCESS;
 
 private:
 	void init(void);
@@ -65,5 +67,4 @@ private:
 	
 	command_t *cmd; 
 	uint8_t numCmds;
-	uint8_t cmdIndex;
 };

@@ -23,6 +23,18 @@ Subshell::Subshell(Stream &ioStream)
 }
 
 /**
+ * @brief Destroy the Subshell:: Subshell object
+ * 
+ */
+Subshell::~Subshell()
+{
+	if (cmd)
+	{
+		free(cmd);
+	}	
+}
+
+/**
  * @brief Initialize class variables
  * 
  */
@@ -33,7 +45,6 @@ void Subshell::init(void)
 
 	cmd = nullptr;
 	numCmds = 0;
-	cmdIndex = 0;
 
 	scratchPad = nullptr;
 }
@@ -46,7 +57,7 @@ void Subshell::init(void)
  * @param[in] cmdFunction Function to be called upon receiving the command
  * @param[in] cmdArg Argument to be passed to cmdFunction
  */
-Subshell_Status Subshell::newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFunction)(void *), void *cmdArg)
+void Subshell::newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFunction)(void *), void *cmdArg)
 {
 	if (command_t *cmdPtr = static_cast<command_t *>(realloc(cmd, (numCmds + 1) * sizeof(command_t))))
 	{
@@ -55,24 +66,26 @@ Subshell_Status Subshell::newCmd(const char *cmdName, const char *cmdHelp, void 
 	else
 	{
 		free(cmd); // realloc failed to allocate new memory but didn't deallocate the original memory
-		return SUBSHELL_REALLOC_FAILURE;
+		status = SUBSHELL_REALLOC_FAILURE;
+		return;
 	}
 
 	if (snprintf(cmd[numCmds].cmdName, commandLength, "%s", cmdName) < 0)
 	{
-		return SUBSHELL_SNPRINTF_FAILURE;
+		status = SUBSHELL_SNPRINTF_FAILURE;
+		return;
 	}
 	
 	if (snprintf(cmd[numCmds].cmdHelp, helpLength, "%s", cmdHelp) < 0)
 	{
-		return SUBSHELL_SNPRINTF_FAILURE;
+		status = SUBSHELL_SNPRINTF_FAILURE;
+		return;
 	}
 
 	cmd[numCmds].cmdFunction = cmdFunction;
 	cmd[numCmds].cmdArg = cmdArg;
 	numCmds++;
 
-	return SUBSHELL_SUCCESS;
 }
 
 /**
@@ -83,9 +96,9 @@ Subshell_Status Subshell::newCmd(const char *cmdName, const char *cmdHelp, void 
  * https://en.wikipedia.org/wiki/C0_and_C1_control_codes
  * 
  */
-void Subshell::checkStream(void)
+void Subshell::run(void)
 {
-	bool EOL = false; // Flag is set true when \r or \n is found
+	bool EOL = false; // End-of-line flag: true when CR or LF are read from stream buffer
 	while (stream->available())
 	{
 		char serialChar = static_cast<char>(stream->read());
@@ -93,14 +106,12 @@ void Subshell::checkStream(void)
 		// Backspace
 		if (serialChar == '\b')
 		{
-			if (strBufferIndex > 0) // Something backspace-able
+			if (strBufferIndex > 0) // strBuffer has characters to be backspaced
 			{
 				// Chop last char from array and move index back
 				strBuffer[strBufferIndex--] = '\0';
-
-				stream->printf("%c", '\b'); // Move left
-				stream->printf("%c", ' ');	// Overwrite char with a space
-				stream->printf("%c", '\b'); // Move back left
+				static char delSeq[] = {'\b', ' ', '\b'};
+				stream->printf("%s", delSeq);			
 				stream->flush();
 			}
 			continue; // Don't add \b to the string buffer
@@ -109,7 +120,7 @@ void Subshell::checkStream(void)
 		// Echo printable characters
 		if (((unsigned)serialChar - 0x20) < 0x5F)
 		{
-			stream->printf("%c", serialChar);
+			stream->write(serialChar);
 		}
 
 		// Line feed
@@ -128,9 +139,9 @@ void Subshell::checkStream(void)
 			stream->printf("\r\n");
 			if (stream->available())
 			{
-				if (stream->peek() == '\n') // CR+LF
+				if (stream->peek() == '\n') // Is CR+LF
 				{
-					stream->read();
+					stream->read(); // Pull LF from the RX buffer
 				}
 			}
 			break;
@@ -158,12 +169,10 @@ void Subshell::parseCmdString(void)
 	if (char *command = this->tokenize(strBuffer, &scratchPad))
 	{
 		bool cmdUnknown = true;
-		cmdIndex = 0;
 		for (size_t i = 2; i < numCmds; i++) // cmd[1] is the default, cmd[0] always runs
 		{
 			if (strncmp(command, cmd[i].cmdName, commandLength) == 0)
 			{
-				cmdIndex = i; // cmdIndex needs set before calling the function in case of help argument
 				(cmd[i].cmdFunction)(cmd[i].cmdArg);
 				cmdUnknown = false;
 				break;
@@ -200,15 +209,33 @@ void Subshell::listCmds(void)
 	}
 }
 
+
 /**
- * @brief Print command help for the previously matched command
+ * @brief 
  * 
  */
-void Subshell::showCmdHelp(void)
+void Subshell::showHelp(void) 
 {
-	if (cmdIndex) // Defaults 0, set on match
+	if (char *arg = getArg())
 	{
-		stream->printf("%s\r\n", cmd[cmdIndex].cmdHelp);
+		bool invalidCmd = true;
+		for (size_t i = 2; i < numCmds; i++) // cmd[1] is the default, cmd[0] always runs
+		{
+			if (strncmp(arg, cmd[i].cmdName, commandLength) == 0)
+			{
+				stream->printf("%s\r\n", cmd[i].cmdHelp);
+				invalidCmd = false;
+				break;
+			}
+		}
+		if (invalidCmd)
+		{
+			stream->printf("Unknown command: %s\r\n", arg);
+		}
+	}
+	else
+	{
+		stream->printf("Error: Invalid Syntax\r\n");
 	}
 }
 
