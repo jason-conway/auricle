@@ -23,6 +23,7 @@ void ASH::init(void)
 {
 	subshell.newCmd("hostname", "", this->hostname, NULL); // Set hostname / prompt
 	subshell.newCmd("unknown", "", this->unknownCommand, NULL); 
+	subshell.newCmd("help", "Show help for the specified command", this->showHelp, NULL); 
 
 	subshell.newCmd("togglepower", "Toggle power on the D3", this->togglePower, NULL);
 	subshell.newCmd("togglemode", "Toggle D3 input mode", this->switchInput, NULL);
@@ -35,38 +36,29 @@ void ASH::init(void)
 	subshell.newCmd("memuse", "View amount of RAM free", this->memoryUse, NULL);
 	subshell.newCmd("lscmd", "List all commands", this->listCommands, NULL);
 
+	if (subshell.status < 0)
+	{
+		if (subshell.status == subshell.SUBSHELL_REALLOC_FAILURE)
+		{
+			SerialUSB.printf(flashmem("Error: realloc"));
+		}
+		if (subshell.status == subshell.SUBSHELL_SNPRINTF_FAILURE)
+		{
+			SerialUSB.printf(flashmem("Error: snprintf"));
+		}
+		subshell.~Subshell();
+	}
+
 	this->motd();
 }
 
 void ASH::execLoop(void)
 {
-	subshell.checkStream();
-}
-
-bool ASH::argHelp(void)
-{
-	if (char *arg = subshell.getArg())
-	{
-		if (strncmp(arg, "-h", 64) == 0)
-		{
-			subshell.showCmdHelp();
-		}
-		else
-		{
-			SerialUSB.printf("Error: incorrect syntax\r\n");
-		}
-		return true;
-	}
-	return false;
+	subshell.run();
 }
 
 void ASH::togglePower(void *)
 {
-	if (argHelp())
-	{
-		return;
-	}
-
 	tpd3io.togglePower();
 	SerialUSB.printf("Done\r\n");
 }
@@ -112,6 +104,11 @@ void ASH::audioPassthrough(void *)
 	SerialUSB.printf("Audio Passthough %s\r\n", convolvIR.togglePassthrough() ? "Enabled" : "Disabled");
 }
 
+void ASH::showHelp(void *)
+{
+	subshell.showHelp();
+}
+
 void ASH::memoryUse(void *)
 {
 	extern unsigned long _heap_end;
@@ -132,18 +129,19 @@ void ASH::unknownCommand(void *)
 {
 	ASH::hostname(NULL);
 	SerialUSB.printf("Unknown command\r\n");
-	fflush(stdout);
+	SerialUSB.flush();
 }
 
 void ASH::clear(void *)
 {
-	SerialUSB.printf("\033[1;1H\033[2J");
+	static char clrSeq[] = {0x1B, 0x5B, 0x32, 0x4A, 0x00};
+	SerialUSB.printf("%s", clrSeq);
 }
 
 void ASH::hostname(void *)
 {
-	SerialUSB.printf("ash> ");
-	fflush(stdout);
+	SerialUSB.printf("ash %% ");
+	SerialUSB.flush();
 }
 
 void ASH::motd(void)
