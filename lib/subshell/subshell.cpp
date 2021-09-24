@@ -14,7 +14,7 @@
 /**
  * @brief Construct a new Subshell:: Subshell object
  * 
- * @param[in] ioStream 
+ * @param[in] ioStream Stream class instance
  */
 Subshell::Subshell(Stream &ioStream)
 {
@@ -23,7 +23,7 @@ Subshell::Subshell(Stream &ioStream)
 }
 
 /**
- * @brief Destroy the Subshell:: Subshell object
+ * @brief Free any memory that may have been allocated
  * 
  */
 Subshell::~Subshell()
@@ -31,7 +31,7 @@ Subshell::~Subshell()
 	if (cmd)
 	{
 		free(cmd);
-	}	
+	}
 }
 
 /**
@@ -40,22 +40,21 @@ Subshell::~Subshell()
  */
 void Subshell::init(void)
 {
-	memset(strBuffer, 0, sizeof(strBuffer));
-	strBufferIndex = 0;
-
 	cmd = nullptr;
 	numCmds = 0;
 
-	scratchPad = nullptr;
+	memset(strBuffer, 0, sizeof(strBuffer));
+	strBufferIndex = 0;
 }
 
 /**
  * @brief Add a name, help / info, function pointer, and function argument set to the command table
  * 
  * @param[in] cmdName Name tied to the command to be created
- * @param[in] cmdHelp Null-terminated help string 
+ * @param[in] cmdHelp Null-terminated help / description string
  * @param[in] cmdFunction Function to be called upon receiving the command
  * @param[in] cmdArg Argument to be passed to cmdFunction
+ * @return None
  */
 void Subshell::newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFunction)(void *), void *cmdArg)
 {
@@ -75,7 +74,7 @@ void Subshell::newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFuncti
 		status = SUBSHELL_SNPRINTF_FAILURE;
 		return;
 	}
-	
+
 	if (snprintf(cmd[numCmds].cmdHelp, helpLength, "%s", cmdHelp) < 0)
 	{
 		status = SUBSHELL_SNPRINTF_FAILURE;
@@ -85,16 +84,10 @@ void Subshell::newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFuncti
 	cmd[numCmds].cmdFunction = cmdFunction;
 	cmd[numCmds].cmdArg = cmdArg;
 	numCmds++;
-
 }
 
 /**
- * @brief Gets a string from the serial terminal. Echos back characters while typing and handles backspaces.
- * Calls parser once the string is complete.
- *
- * https://en.wikipedia.org/wiki/ANSI_escape_code
- * https://en.wikipedia.org/wiki/C0_and_C1_control_codes
- * 
+ * @brief Main loop
  */
 void Subshell::run(void)
 {
@@ -103,28 +96,19 @@ void Subshell::run(void)
 	{
 		char serialChar = static_cast<char>(stream->read());
 
-		// Backspace
-		if (serialChar == '\b')
+		if (serialChar == '\b') // Backspace
 		{
 			if (strBufferIndex > 0) // strBuffer has characters to be backspaced
 			{
 				// Chop last char from array and move index back
 				strBuffer[strBufferIndex--] = '\0';
-				static char delSeq[] = {'\b', ' ', '\b'};
-				stream->printf("%s", delSeq);			
-				stream->flush();
+				const char delSeq[] = {'\b', ' ', '\b'};
+				stream->printf("%s", delSeq);
 			}
 			continue; // Don't add \b to the string buffer
 		}
 
-		// Echo printable characters
-		if (((unsigned)serialChar - 0x20) < 0x5F)
-		{
-			stream->write(serialChar);
-		}
-
-		// Line feed
-		if (serialChar == '\n')
+		if (serialChar == '\n') // Line feed
 		{
 			// Set flag, print EOL sequence, and exit loop
 			EOL = true;
@@ -132,19 +116,25 @@ void Subshell::run(void)
 			break;
 		}
 
-		// Carriage return or carriage return + line feed combo
-		if (serialChar == '\r')
+		if (serialChar == '\r') // Carriage return or carriage return + line feed combo
 		{
 			EOL = true;
 			stream->printf("\r\n");
+
 			if (stream->available())
 			{
-				if (stream->peek() == '\n') // Is CR+LF
+				if (stream->peek() == '\n') // CR+LF
 				{
 					stream->read(); // Pull LF from the RX buffer
 				}
 			}
 			break;
+		}
+
+		// Echo printable characters
+		if (((unsigned)serialChar - 0x20) < 0x5F)
+		{
+			stream->write(serialChar);
 		}
 
 		strBuffer[strBufferIndex++] = serialChar;
@@ -161,12 +151,12 @@ void Subshell::run(void)
 
 /**
  * @brief Break string apart at the spaces and check if the first word is a known command. Call the associated function 
- * if known, otherwise call the function associated with cmd[1]. 
+ * if known, otherwise call the default function at cmd[1]
  * 
  */
 void Subshell::parseCmdString(void)
 {
-	if (char *command = this->tokenize(strBuffer, &scratchPad))
+	if (char *command = this->tokenize(strBuffer))
 	{
 		bool cmdUnknown = true;
 		for (size_t i = 2; i < numCmds; i++) // cmd[1] is the default, cmd[0] always runs
@@ -183,21 +173,27 @@ void Subshell::parseCmdString(void)
 			(cmd[1].cmdFunction)(cmd[1].cmdArg); // cmd[1] set as an unknown command handler
 		}
 	}
-	(cmd[0].cmdFunction)(cmd[0].cmdArg); // cmd[0] set to print hostname
+	(cmd[0].cmdFunction)(cmd[0].cmdArg); // cmd[0] set to print shell prompt
 }
 
 /**
- * @brief Return the command arguments if there are any
+ * @brief Get a tokenized command argument as a C string. If no arguments were entered, the input pointer remains unchanged.
  * 
- * @return char* 
+ * @param[inout] cmdArg Pointer to the argument string
+ * @return Returns true if an argument was present, otherwise false
  */
-char *Subshell::getArg(void)
+bool Subshell::getArg(char **cmdArg)
 {
-	return this->tokenize(NULL, &scratchPad);
+	if (char *arg = this->tokenize(nullptr))
+	{
+		*cmdArg = arg;
+		return true;
+	}
+	return false;
 }
 
 /**
- * @brief Print registered commands
+ * @brief Print registered commands 
  * 
  */
 void Subshell::listCmds(void)
@@ -209,14 +205,13 @@ void Subshell::listCmds(void)
 	}
 }
 
-
 /**
  * @brief 
  * 
  */
-void Subshell::showHelp(void) 
+void Subshell::showHelp(void)
 {
-	if (char *arg = getArg())
+	if (char *arg = this->tokenize(nullptr))
 	{
 		bool invalidCmd = true;
 		for (size_t i = 2; i < numCmds; i++) // cmd[1] is the default, cmd[0] always runs
@@ -240,33 +235,38 @@ void Subshell::showHelp(void)
 }
 
 /**
- * @brief Thread-safe strtok clone... strtok_r but without custom delimitors?
- * 
- * @param[in] inputString 
- * @param[in] scratchPad 
- * @return char* 
+ * @brief Turns C strings into space-seperated tokens
+ *
+ * @param[in] tokenStart C string to be tokenized at the expense of getting clobbered 
+ * @return Returns pointer to a null-terminated token from tokenStart
  */
-char *Subshell::tokenize(char *inputString, char **scratchPad)
+char *Subshell::tokenize(char *tokenStart)
 {
-	if (!(inputString) && (!(inputString = *scratchPad)))
+	static char *tokenEnd; // Hold pointer to previous token between calls
+
+	if (!(tokenStart)) // tokenStart is null
 	{
-		return NULL;
+		if (!(tokenStart = tokenEnd)) // Set new starting point
+		{
+			return nullptr; // tokenEnd is null
+		}
 	}
 
-	inputString = inputString + strspn(inputString, " ");
-	if (!(*inputString))
+	tokenStart = tokenStart + strspn(tokenStart, " "); // Characters until a space
+	if (!(*tokenStart)) // Pointing at a null character
 	{
-		return *scratchPad = 0;
+		return tokenEnd = nullptr; // Set end pointer null and return
 	}
 
-	*scratchPad = inputString + strcspn(inputString, " ");
-	if (**scratchPad)
+	tokenEnd = tokenStart + strcspn(tokenStart, " "); // Number of characters until next space
+	if (*tokenEnd) // End of token is not null so replace the space with null-terminator
 	{
-		*(*scratchPad)++ = 0;
+		*tokenEnd++ = '\0'; 
 	}
-	else
+	else // End of the string
 	{
-		*scratchPad = 0;
+		tokenEnd = nullptr;
 	}
-	return inputString;
+
+	return tokenStart; 
 }

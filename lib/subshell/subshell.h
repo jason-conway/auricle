@@ -15,7 +15,12 @@
 #include <string.h>
 #include <Stream.h>
 
-#define LDFLASH __attribute__((section(".flashmem")))
+enum Subshell_Status 
+{
+	SUBSHELL_REALLOC_FAILURE = -2,
+	SUBSHELL_SNPRINTF_FAILURE,
+	SUBSHELL_SUCCESS
+};
 
 class Subshell
 {
@@ -28,23 +33,16 @@ public:
 	void run(void);
 	void listCmds(void);
 	void showHelp(void);
-	char *getArg(void); 
+	bool getArg(char **cmdArg); 
 
-	enum Subshell_Status 
-	{
-		SUBSHELL_REALLOC_FAILURE = -2,
-		SUBSHELL_SNPRINTF_FAILURE,
-		SUBSHELL_SUCCESS
-	};
 	Subshell_Status status = SUBSHELL_SUCCESS;
 
 private:
 	void init(void);
 	void parseCmdString(void);
 
-	char *tokenize(char *inputString, char **scratchPad);
-	char *scratchPad; // Scratchpad for holding state in between calls to tokenize
-
+	char *tokenize(char *inputString);
+	
 	Stream *stream;
 
 	enum strLengths
