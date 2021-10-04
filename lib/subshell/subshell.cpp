@@ -48,42 +48,76 @@ void Subshell::init(void)
 }
 
 /**
- * @brief Add a name, help / info, function pointer, and function argument set to the command table
+ * @brief Private function to implement the addition of a new command
  * 
  * @param[in] cmdName Name tied to the command to be created
  * @param[in] cmdHelp Null-terminated help / description string
  * @param[in] cmdFunction Function to be called upon receiving the command
- * @param[in] cmdArg Argument to be passed to cmdFunction
+ * @param[in] cmdArg nullptr 
  * @return None
  */
-void Subshell::newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFunction)(void *), void *cmdArg)
+bool Subshell::_newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFunction)(void *))
 {
+	// Increase the size of cmd by sizeof(command_t)
 	if (command_t *cmdPtr = static_cast<command_t *>(realloc(cmd, (numCmds + 1) * sizeof(command_t))))
 	{
 		cmd = cmdPtr; // Update cmd with the new address
 	}
 	else
 	{
-		free(cmd); // realloc failed to allocate new memory but didn't deallocate the original memory
-		status = SUBSHELL_REALLOC_FAILURE;
-		return;
+		this->printError(cmdName, "realloc failure");
+		return false;
 	}
 
 	if (snprintf(cmd[numCmds].cmdName, commandLength, "%s", cmdName) < 0)
 	{
-		status = SUBSHELL_SNPRINTF_FAILURE;
-		return;
+		this->printError(cmdName, "snprintf failure");
+		return false;
 	}
 
 	if (snprintf(cmd[numCmds].cmdHelp, helpLength, "%s", cmdHelp) < 0)
 	{
-		status = SUBSHELL_SNPRINTF_FAILURE;
-		return;
+		this->printError(cmdName, "snprintf failure");
+		return false;
 	}
 
 	cmd[numCmds].cmdFunction = cmdFunction;
-	cmd[numCmds].cmdArg = cmdArg;
+	cmd[numCmds].cmdArg = nullptr;
 	numCmds++;
+
+	return true;
+}
+
+/**
+ * @brief Add a name, help / info, function pointer, and function argument set to the command table
+ * 
+ * @param[in] cmdName Name tied to the command to be created
+ * @param[in] cmdHelp Null-terminated help / description string
+ * @param[in] cmdFunction Function to be called upon receiving the command
+ * @return None
+ */
+void Subshell::newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFunction)(void *))
+{
+	if (numCmds == 0 && !(strncmp(cmdName, "shPrompt", commandLength) == 0))
+	{
+		this->printError(cmdName, "First command must have name 'shPrompt'");
+		exit(EXIT_FAILURE);
+	}
+	if (numCmds == 1 && !(strncmp(cmdName, "unkCmd", commandLength) == 0))
+	{
+		this->printError(cmdName, "Second command must have name 'unkCmd'");
+		exit(EXIT_FAILURE);
+	}
+	if (!(this->_newCmd(cmdName, cmdHelp, cmdFunction)))
+	{
+		this->~Subshell(); // realloc failed to allocate new memory but didn't deallocate the original memory
+		exit(EXIT_FAILURE);
+	}
+}
+
+void Subshell::printError(const char *cmdName, const char *cmdError)
+{
+	stream->printf("Subshell Error\r\nCommand Name: %s\r\nError: %s\r\n", cmdName, cmdError);
 }
 
 /**
@@ -95,29 +129,24 @@ void Subshell::run(void)
 	while (stream->available())
 	{
 		char serialChar = static_cast<char>(stream->read());
-
-		if (serialChar == '\b') // Backspace
+		switch (serialChar)
 		{
+		case '\b':					// Backspace
 			if (strBufferIndex > 0) // strBuffer has characters to be backspaced
 			{
 				// Chop last char from array and move index back
 				strBuffer[strBufferIndex--] = '\0';
-				const char delSeq[] = {'\b', ' ', '\b'};
+				static char delSeq[] = {'\b', ' ', '\b'};
 				stream->printf("%s", delSeq);
 			}
-			continue; // Don't add \b to the string buffer
-		}
+			break;
 
-		if (serialChar == '\n') // Line feed
-		{
-			// Set flag, print EOL sequence, and exit loop
+		case '\n': // Line feed
 			EOL = true;
 			stream->printf("\r\n");
-			break;
-		}
+			goto jmpOut;
 
-		if (serialChar == '\r') // Carriage return or carriage return + line feed combo
-		{
+		case '\r': // Carriage return or carriage return + line feed combo
 			EOL = true;
 			stream->printf("\r\n");
 
@@ -128,19 +157,22 @@ void Subshell::run(void)
 					stream->read(); // Pull LF from the RX buffer
 				}
 			}
+			goto jmpOut;
+
+		default:
+			// Echo printable characters
+			if ((serialChar - 0x20) < 0x5F)
+			{
+				stream->write(serialChar);
+			}
+
+			strBuffer[strBufferIndex++] = serialChar;
+			strBuffer[strBufferIndex] = '\0';
 			break;
 		}
-
-		// Echo printable characters
-		if (((unsigned)serialChar - 0x20) < 0x5F)
-		{
-			stream->write(serialChar);
-		}
-
-		strBuffer[strBufferIndex++] = serialChar;
-		strBuffer[strBufferIndex] = '\0';
 	}
 
+jmpOut:
 	if (EOL)
 	{
 		this->parseCmdString();
@@ -237,36 +269,36 @@ void Subshell::showHelp(void)
 /**
  * @brief Turns C strings into space-seperated tokens
  *
- * @param[in] tokenStart C string to be tokenized at the expense of getting clobbered 
- * @return Returns pointer to a null-terminated token from tokenStart
+ * @param[in] strStart C string to be tokenized at the expense of getting clobbered 
+ * @return Returns pointer to a null-terminated token from strStart
  */
-char *Subshell::tokenize(char *tokenStart)
+char *Subshell::tokenize(char *strStart)
 {
 	static char *tokenEnd; // Hold pointer to previous token between calls
 
-	if (!(tokenStart)) // tokenStart is null
+	if (!(strStart)) // strStart is null
 	{
-		if (!(tokenStart = tokenEnd)) // Set new starting point
+		if (!(strStart = tokenEnd)) // Set new starting point
 		{
 			return nullptr; // tokenEnd is null
 		}
 	}
 
-	tokenStart = tokenStart + strspn(tokenStart, " "); // Characters until a space
-	if (!(*tokenStart)) // Pointing at a null character
+	strStart = strStart + strspn(strStart, " "); // Characters until a space
+	if (!(*strStart))							 // Pointing at a null character
 	{
 		return tokenEnd = nullptr; // Set end pointer null and return
 	}
 
-	tokenEnd = tokenStart + strcspn(tokenStart, " "); // Number of characters until next space
-	if (*tokenEnd) // End of token is not null so replace the space with null-terminator
+	tokenEnd = strStart + strcspn(strStart, " "); // Number of characters until next space
+	if (*tokenEnd)								  // End of token is not null so replace the space with null-terminator
 	{
-		*tokenEnd++ = '\0'; 
+		*tokenEnd++ = '\0';
 	}
 	else // End of the string
 	{
 		tokenEnd = nullptr;
 	}
 
-	return tokenStart; 
+	return strStart;
 }

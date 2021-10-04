@@ -11,37 +11,32 @@
 
 #pragma once
 
+#include <WProgram.h>
 #include <stdlib.h>
 #include <string.h>
 #include <Stream.h>
 
-enum Subshell_Status 
-{
-	SUBSHELL_REALLOC_FAILURE = -2,
-	SUBSHELL_SNPRINTF_FAILURE,
-	SUBSHELL_SUCCESS
-};
-
 class Subshell
 {
 public: 
-	Subshell(Stream &ioStream);
+	Subshell(Stream &ioStream = SerialUSB);
 	~Subshell();         
 
-	void newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFunction)(void *), void *cmdArg);
+	void newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFunction)(void *));
 
 	void run(void);
 	void listCmds(void);
 	void showHelp(void);
-	bool getArg(char **cmdArg); 
 
-	Subshell_Status status = SUBSHELL_SUCCESS;
+	bool getArg(char **cmdArg); 
 
 private:
 	void init(void);
-	void parseCmdString(void);
 
-	char *tokenize(char *inputString);
+	bool _newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFunction)(void *));
+	void parseCmdString(void);
+	
+	char *tokenize(char *strStart);
 	
 	Stream *stream;
 
@@ -52,6 +47,8 @@ private:
 		helpLength = 64
 	};
 
+	void printError(const char *cmdName, const char *cmdError);
+
 	char strBuffer[bufferLength]; 
 	uint8_t strBufferIndex;   
 	
@@ -59,7 +56,7 @@ private:
 	{
 		char cmdName[commandLength]; 
 		char cmdHelp[helpLength];
-		void (*cmdFunction)(void*);
+		void (*cmdFunction)(void *);
 		void *cmdArg;
 	};
 	
