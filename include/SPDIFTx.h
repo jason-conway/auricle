@@ -51,11 +51,4 @@ private:
 	static uint8_t configureDMA(void);
 	static void dmaISR(void);	
 	static uint32_t getTxOffset(uint32_t txSourceAddress, uint32_t sourceBufferSize);
-
-	enum Channels
-	{
-		STEREO_LEFT,
-		STEREO_RIGHT
-	};
-
 };

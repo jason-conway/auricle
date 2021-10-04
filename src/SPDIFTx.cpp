@@ -13,8 +13,8 @@
 
 // S/PDIF transmit buffer
 // TCD0_SADDR -> TCD31_SADDR
-static int32_t __attribute__((section(".dmabuffers"), used)) __attribute__((aligned(32))) txBuffer[512];
-audio_block_t __attribute__((section(".dmabuffers"), used)) __attribute__((aligned(32))) SPDIFTx::silentAudio;
+static int32_t __attribute__((section(".dmabuffers"), used, aligned(32))) txBuffer[512];
+audio_block_t __attribute__((section(".dmabuffers"), used, aligned(32))) SPDIFTx::silentAudio;
 
 audio_block_t *SPDIFTx::leftAudioBuffer[];
 audio_block_t *SPDIFTx::rightAudioBuffer[];
