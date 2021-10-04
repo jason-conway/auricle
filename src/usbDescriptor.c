@@ -18,15 +18,15 @@
 #define AURICLE_PRODUCT_NAME_LEN 7
 
 struct usb_string_descriptor_struct usb_string_product_name =
-    {
-        2 + AURICLE_PRODUCT_NAME_LEN * 2,
-        3,
-        AURICLE_PRODUCT_NAME
-    };
+	{
+		2 + AURICLE_PRODUCT_NAME_LEN * 2,
+		3,
+		AURICLE_PRODUCT_NAME
+	};
 
 struct usb_string_descriptor_struct usb_string_manufacturer_name =
-    {
-        2 + AURICLE_MANUFACTURER_NAME_LEN * 2,
-        3,
-        AURICLE_MANUFACTURER_NAME
-    };
+	{
+		2 + AURICLE_MANUFACTURER_NAME_LEN * 2,
+		3,
+		AURICLE_MANUFACTURER_NAME
+	};

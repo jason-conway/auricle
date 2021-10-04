@@ -16,14 +16,14 @@
 
 AudioInputUSB stereoIn;
 SPDIFTx stereoOut;
-
 ConvolvIR convolvIR;
-ASH ash;
 
 AudioConnection leftInConv(stereoIn, leftChannel, convolvIR, leftChannel);
 AudioConnection rightInConv(stereoIn, rightChannel, convolvIR, rightChannel);
 AudioConnection leftOutConv(convolvIR, leftChannel, stereoOut, leftChannel);
 AudioConnection rightOutConv(convolvIR, rightChannel, stereoOut, rightChannel);
+
+ASH ash;
 
 int main(void)
 {
@@ -43,6 +43,6 @@ int main(void)
 	{
 		ash.execLoop();
 	}
-
+	
 	return EXIT_SUCCESS;
 }

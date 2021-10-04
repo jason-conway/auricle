@@ -19,27 +19,26 @@
 class ASH
 {
 public:
-    ASH(void);
-    void execLoop(void);
-    void init(void);
+	ASH(void);
+	void execLoop(void);
+	void init(void);
 
 private:
-    void motd(void);
-    
-    static void togglePower(void *);
-    static void setAngle(void *);
-    static void switchInput(void *);
-    static void currentStatus(void *);
-    static void audioPassthrough(void *);
-    static void audioMemory(void *);
+	void motd(void);
 
-    static void reboot(void *);
-    static void clear(void *);
-    static void memoryUse(void *);
-    static void listCommands(void *);
+	static void togglePower(void *);
+	static void setAngle(void *);
+	static void switchInput(void *);
+	static void currentStatus(void *);
+	static void audioPassthrough(void *);
+	static void audioMemory(void *);
 
-    static void unknownCommand(void *);
-    static void hostname(void *);
-    static void showHelp(void *);
-    
+	static void reboot(void *);
+	static void clear(void *);
+	static void memoryUse(void *);
+	static void listCommands(void *);
+
+	static void unknownCommand(void *);
+	static void hostname(void *);
+	static void showHelp(void *);
 };
