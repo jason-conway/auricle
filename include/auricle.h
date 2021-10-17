@@ -12,6 +12,7 @@
 #pragma once
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include <stdint.h>
@@ -26,8 +27,8 @@ enum Stereo
 
 inline void msleep(uint32_t mS)
 {
-	uint32_t uS = 396000 * mS;
-	uint32_t startingCycleCount = *reinterpret_cast<volatile uint32_t *>(0xE0001004);
-	while (*reinterpret_cast<volatile uint32_t *>(0xE0001004) - startingCycleCount < uS);
+	uint32_t uS = 600000 * mS;
+	uint32_t startingCycleCount = *(volatile uint32_t *)0xE0001004;
+	while (*(volatile uint32_t *)0xE0001004 - startingCycleCount < uS);
 }
 
