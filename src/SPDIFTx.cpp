@@ -1,7 +1,7 @@
 /**
- * @file SPDIFTx.cpp
+ * @file spdifTx.cpp
  * @author Jason Conway (jpc@jasonconway.dev)
- * @brief IMXRT1060 HW S/PDIF
+ * @brief IMXRT1060 HW S/PDIF Transmitter
  * @version 0.1
  * @date 2021-06-22
  *
@@ -9,22 +9,22 @@
  *
  */
 
-#include "SPDIFTx.h"
+#include "spdifTx.h"
 
 // S/PDIF transmit buffer
-static int32_t __attribute__((section(".dmabuffers"), used, aligned(32))) txBuffer[512];
+static int32_t __attribute__((section(".dmabuffers"), used, aligned(32))) fifoTx[512];
 static audio_block_t __attribute__((section(".dmabuffers"), used, aligned(32))) silentAudio;
 
-audio_block_t *SPDIFTx::leftAudioBuffer[];
-audio_block_t *SPDIFTx::rightAudioBuffer[];
+audio_block_t *SpdifTx::leftAudioBuffer[];
+audio_block_t *SpdifTx::rightAudioBuffer[];
 
-DMAChannel SPDIFTx::eDMA(false);
+DMAChannel SpdifTx::eDMA(false);
 
 /**
- * @brief Construct a new SPDIFTx::SPDIFTx object
+ * @brief Construct a new SpdifTx::SpdifTx object
  *
  */
-SPDIFTx::SPDIFTx(void) : AudioStream(2, inputQueueArray)
+SpdifTx::SpdifTx(void) : AudioStream(2, inputQueueArray)
 {
 	pinMode(33, OUTPUT);
 	this->init();
@@ -34,7 +34,7 @@ SPDIFTx::SPDIFTx(void) : AudioStream(2, inputQueueArray)
  * @brief
  *
  */
-void __attribute__((section(".flashmem"))) SPDIFTx::init(void)
+void __attribute__((section(".flashmem"))) SpdifTx::init(void)
 {
 	dmaChannel = this->configureDMA();
 	this->configureSpdifRegisters();
@@ -66,14 +66,14 @@ void __attribute__((section(".flashmem"))) SPDIFTx::init(void)
  * register is set with DMA_TCD_CSR_INTMAJOR and DMA_TCD_CSR_INTHALF
  *
  */
-void SPDIFTx::dmaISR(void)
+void SpdifTx::dmaISR(void)
 {
-	int32_t txOffset = getTxOffset((uint32_t)&txBuffer[0], 1024);
+	int32_t txOffset = getTxOffset((uint32_t)&fifoTx[0], 1024);
 
 	// Clear Interrupt Request Register (pg 138)
 	DMA_CINT = eDMA.channel; // Disable interrupt request for this DMA channel
 
-	int32_t *txBaseAddress = &txBuffer[0] + txOffset;
+	int32_t *txBaseAddress = &fifoTx[0] + txOffset;
 
 	audio_block_t *leftAudio = (leftAudioBuffer[0]) ?: &silentAudio;
 	audio_block_t *rightAudio = (rightAudioBuffer[0]) ?: &silentAudio;
@@ -101,7 +101,7 @@ void SPDIFTx::dmaISR(void)
  * @brief
  *
  */
-void SPDIFTx::update(void)
+void SpdifTx::update(void)
 {
 	audio_block_t *leftAudio = receiveReadOnly(leftChannel);
 	audio_block_t *rightAudio = receiveReadOnly(rightChannel);
@@ -166,7 +166,7 @@ void SPDIFTx::update(void)
  * @param sourceBufferSize
  * @return uint16_t
  */
-inline int32_t SPDIFTx::getTxOffset(uint32_t txSourceAddress, uint32_t sourceBufferSize)
+inline int32_t SpdifTx::getTxOffset(uint32_t txSourceAddress, uint32_t sourceBufferSize)
 {
 	return ((uint32_t)(eDMA.TCD->SADDR) < txSourceAddress + sourceBufferSize) ? 0x0100 : 0x0000;
 }
@@ -179,7 +179,7 @@ inline int32_t SPDIFTx::getTxOffset(uint32_t txSourceAddress, uint32_t sourceBuf
  * @param[in] rightAudioData
  *
  */
-inline void SPDIFTx::spdifInterleave(int32_t *pTx, const int16_t *leftAudioData, const int16_t *rightAudioData)
+inline void SpdifTx::spdifInterleave(int32_t *pTx, const int16_t *leftAudioData, const int16_t *rightAudioData)
 {
 	// The 16-bit data being sent needs to be positioned in the center two bytes of the 32-bit word, with the 8 least-significant-bits
 	// set to zero. The 8 most-significant-bits are ignored (pg 1966)
@@ -207,11 +207,11 @@ inline void SPDIFTx::spdifInterleave(int32_t *pTx, const int16_t *leftAudioData,
  *
  * @return Returns the eDMA channel number
  */
-uint8_t SPDIFTx::configureDMA(void)
+uint8_t SpdifTx::configureDMA(void)
 {
 	eDMA.begin(true);
 	// TCD Source Address (pg 156)
-	eDMA.TCD->SADDR = &txBuffer[0]; // DMA channel source address starts at the beginning of the transmission buffer
+	eDMA.TCD->SADDR = &fifoTx[0]; // DMA channel source address starts at the beginning of the transmission buffer
 
 	// TCD Signed Source Address Offset (pg 157)
 	eDMA.TCD->SOFF = 4; // int32_t => 4 bytes
@@ -228,7 +228,7 @@ uint8_t SPDIFTx::configureDMA(void)
 		DMA_TCD_NBYTES_MLOFFYES_NBYTES(8);	// Transfer 8 bytes for each service request
 
 	// TCD Last Source Address Adjustment (pg 163)
-	eDMA.TCD->SLAST = -2048; // 2048 bytes to move SADDR back to &txBuffer[0]
+	eDMA.TCD->SLAST = -2048; // 2048 bytes to move SADDR back to &fifoTx[0]
 
 	// TCD Destination Address (pg 164)
 	eDMA.TCD->DADDR = &SPDIF_STL; // DMA channel destination address is audio data transmission register for the left SPDIF channel
@@ -253,7 +253,7 @@ uint8_t SPDIFTx::configureDMA(void)
 	return eDMA.channel;
 }
 
-void __attribute__((section(".flashmem"))) SPDIFTx::configureSpdifRegisters(void)
+void __attribute__((section(".flashmem"))) SpdifTx::configureSpdifRegisters(void)
 {
 	msleep(3);
 
@@ -289,15 +289,14 @@ void __attribute__((section(".flashmem"))) SPDIFTx::configureSpdifRegisters(void
 
 	CCM_CCGR5 |= CCM_CCGR5_SPDIF(CCM_CCGR_ON); // Remove gate
 
-	if (!(SPDIF_SCR & (SPDIF_SCR_DMA_RX_EN | SPDIF_SCR_DMA_TX_EN)))
+	if (SPDIF_SCR & (SPDIF_SCR_DMA_RX_EN | SPDIF_SCR_DMA_TX_EN))
+	{
+		return;	
+	}
+	else 
 	{
 		SPDIF_SCR = SPDIF_SCR_SOFT_RESET; // SPDIF software reset
-		while (SPDIF_SCR & SPDIF_SCR_SOFT_RESET)
-			; // Returns one during while resetting
-	}
-	else
-	{
-		return;
+		while (SPDIF_SCR & SPDIF_SCR_SOFT_RESET); // Returns one during while resetting
 	}
 
 	// SPDIF Configuration Register (pg 2037)

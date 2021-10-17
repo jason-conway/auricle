@@ -1,5 +1,5 @@
 /**
- * @file SPDIFTx.h
+ * @file spdifTx.h
  * @author Jason Conway (jpc@jasonconway.dev)
  * @brief IMXRT1060 HW S/PDIF
  * @version 0.1
@@ -15,16 +15,16 @@
 #include <AudioStream.h>
 #include <DMAChannel.h>
 
-class SPDIFTx : public AudioStream
+class SpdifTx : public AudioStream
 {
 public:
-	SPDIFTx(void);
+	SpdifTx(void);
 	virtual void update(void);
 
 private:
 	void init(void);		
 	static void configureSpdifRegisters(void);
-	static void spdifInterleave(int32_t *pTx, const int16_t *pLeft, const int16_t *pRight);
+	static void spdifInterleave(int32_t *pTx, const int16_t *leftAudioData, const int16_t *rightAudioData);
 	static void dmaISR(void);	
 	
 	static uint8_t configureDMA(void);
