@@ -1,5 +1,5 @@
 /**
- * @file tpd3io.h
+ * @file d3io.h
  * @author Jason Conway (jpc@jasonconway.dev)
  * @brief Spatial Audio for Arm Cortex-M7
  * @version 0.1
@@ -49,10 +49,10 @@
 // MUX_MODE ALT5 ==> GPIO
 #define GPIO_MUX_MODE_ALT5 (0b0101 | 0b00010000)
 
-class TPD3IO
+class D3io
 {
 public:
-	TPD3IO(void);
+	D3io(void);
 	void togglePower(void);
 	void switchInput(void);
 	void currentStatus(void);

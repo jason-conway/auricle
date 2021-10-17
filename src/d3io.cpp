@@ -1,5 +1,5 @@
 /**
- * @file tpd3io.cpp
+ * @file d3io.cpp
  * @author Jason Conway (jpc@jasonconway.dev)
  * @brief Spatial Audio for Arm Cortex-M7
  * @version 0.1
@@ -9,13 +9,13 @@
  *
  */
 
-#include "tpd3io.h"
+#include "d3io.h"
 
 /**
- * @brief Construct a new TPD3IO::TPD3IO object
+ * @brief Construct a new D3io::D3io object
  *
  */
-TPD3IO::TPD3IO(void)
+D3io::D3io(void)
 {
 	init();
 }
@@ -24,28 +24,28 @@ TPD3IO::TPD3IO(void)
  * @brief Configure GPIO for interfacing with the D3
  *
  */
-void __attribute__((section(".flashmem"))) TPD3IO::init(void)
+void __attribute__((section(".flashmem"))) D3io::init(void)
 {
-	volatile uint32_t *gpio_pow_reg = static_cast<volatile uint32_t *>(&GPIO_DR_SIG_OUT);
-	volatile uint32_t *gpio_sel_reg = static_cast<volatile uint32_t *>(&GPIO_DR_SIG_OUT);
-	volatile uint32_t *gpio_usb_reg = static_cast<volatile uint32_t *>(&GPIO_DR_SIG_IN);
-	volatile uint32_t *gpio_opt_reg = static_cast<volatile uint32_t *>(&GPIO_DR_SIG_IN);
-	volatile uint32_t *gpio_rca_reg = static_cast<volatile uint32_t *>(&GPIO_DR_SIG_IN);
-	volatile uint32_t *gpio_bnc_reg = static_cast<volatile uint32_t *>(&GPIO_DR_SIG_IN);
+	volatile uint32_t *gpio_pow_reg = (volatile uint32_t *)(&GPIO_DR_SIG_OUT);
+	volatile uint32_t *gpio_sel_reg = (volatile uint32_t *)(&GPIO_DR_SIG_OUT);
+	volatile uint32_t *gpio_usb_reg = (volatile uint32_t *)(&GPIO_DR_SIG_IN);
+	volatile uint32_t *gpio_opt_reg = (volatile uint32_t *)(&GPIO_DR_SIG_IN);
+	volatile uint32_t *gpio_rca_reg = (volatile uint32_t *)(&GPIO_DR_SIG_IN);
+	volatile uint32_t *gpio_bnc_reg = (volatile uint32_t *)(&GPIO_DR_SIG_IN);
 
-	volatile uint32_t *gpio_pow_mux = static_cast<volatile uint32_t *>(&GPIO_IOMUX_SIG_POW);
-	volatile uint32_t *gpio_sel_mux = static_cast<volatile uint32_t *>(&GPIO_IOMUX_SIG_SEL);
-	volatile uint32_t *gpio_usb_mux = static_cast<volatile uint32_t *>(&GPIO_IOMUX_SIG_USB);
-	volatile uint32_t *gpio_opt_mux = static_cast<volatile uint32_t *>(&GPIO_IOMUX_SIG_OPT);
-	volatile uint32_t *gpio_rca_mux = static_cast<volatile uint32_t *>(&GPIO_IOMUX_SIG_RCA);
-	volatile uint32_t *gpio_bnc_mux = static_cast<volatile uint32_t *>(&GPIO_IOMUX_SIG_BNC);
+	volatile uint32_t *gpio_pow_mux = (volatile uint32_t *)(&GPIO_IOMUX_SIG_POW);
+	volatile uint32_t *gpio_sel_mux = (volatile uint32_t *)(&GPIO_IOMUX_SIG_SEL);
+	volatile uint32_t *gpio_usb_mux = (volatile uint32_t *)(&GPIO_IOMUX_SIG_USB);
+	volatile uint32_t *gpio_opt_mux = (volatile uint32_t *)(&GPIO_IOMUX_SIG_OPT);
+	volatile uint32_t *gpio_rca_mux = (volatile uint32_t *)(&GPIO_IOMUX_SIG_RCA);
+	volatile uint32_t *gpio_bnc_mux = (volatile uint32_t *)(&GPIO_IOMUX_SIG_BNC);
 
-	volatile uint32_t *gpio_pow_pad = static_cast<volatile uint32_t *>(&GPIO_PAD_SIG_POW);
-	volatile uint32_t *gpio_sel_pad = static_cast<volatile uint32_t *>(&GPIO_PAD_SIG_SEL);
-	volatile uint32_t *gpio_usb_pad = static_cast<volatile uint32_t *>(&GPIO_PAD_SIG_USB);
-	volatile uint32_t *gpio_opt_pad = static_cast<volatile uint32_t *>(&GPIO_PAD_SIG_OPT);
-	volatile uint32_t *gpio_rca_pad = static_cast<volatile uint32_t *>(&GPIO_PAD_SIG_RCA);
-	volatile uint32_t *gpio_bnc_pad = static_cast<volatile uint32_t *>(&GPIO_PAD_SIG_BNC);
+	volatile uint32_t *gpio_pow_pad = (volatile uint32_t *)(&GPIO_PAD_SIG_POW);
+	volatile uint32_t *gpio_sel_pad = (volatile uint32_t *)(&GPIO_PAD_SIG_SEL);
+	volatile uint32_t *gpio_usb_pad = (volatile uint32_t *)(&GPIO_PAD_SIG_USB);
+	volatile uint32_t *gpio_opt_pad = (volatile uint32_t *)(&GPIO_PAD_SIG_OPT);
+	volatile uint32_t *gpio_rca_pad = (volatile uint32_t *)(&GPIO_PAD_SIG_RCA);
+	volatile uint32_t *gpio_bnc_pad = (volatile uint32_t *)(&GPIO_PAD_SIG_BNC);
 
 	*(gpio_pow_reg + 1) |= GPIO_MASK_SIG_POW;
 	*gpio_pow_pad = IOMUXC_PAD_DSE(7);
@@ -80,7 +80,7 @@ void __attribute__((section(".flashmem"))) TPD3IO::init(void)
  * @brief Write SIG_POW HIGH for 50ms to toggle power on the D3 board
  *
  */
-void __attribute__((section(".flashmem"))) TPD3IO::togglePower(void)
+void __attribute__((section(".flashmem"))) D3io::togglePower(void)
 {
 	GPIO6_DR_SET = GPIO_MASK_SIG_POW;
 	msleep(50);
@@ -95,7 +95,7 @@ void __attribute__((section(".flashmem"))) TPD3IO::togglePower(void)
  * @brief Write SIG_SEL HIGH for 50ms switch inputs on the D3 board
  *
  */
-void __attribute__((section(".flashmem"))) TPD3IO::switchInput(void)
+void __attribute__((section(".flashmem"))) D3io::switchInput(void)
 {
 	this->checkAll();
 	uint8_t currentMode = d3status.mode;
@@ -117,7 +117,7 @@ void __attribute__((section(".flashmem"))) TPD3IO::switchInput(void)
  * @brief Report current status of the D3
  *
  */
-void __attribute__((section(".flashmem"))) TPD3IO::currentStatus(void)
+void __attribute__((section(".flashmem"))) D3io::currentStatus(void)
 {
 	this->checkAll();
 	SerialUSB.printf("Current Input: ");
@@ -140,7 +140,7 @@ void __attribute__((section(".flashmem"))) TPD3IO::currentStatus(void)
  * @brief Check all D3 inputs and set d3status.mode
  *
  */
-void __attribute__((section(".flashmem"))) TPD3IO::checkAll(void)
+void __attribute__((section(".flashmem"))) D3io::checkAll(void)
 {
 	if (GPIO_PSR_SIG_IN & GPIO_MASK_SIG_USB)
 	{
@@ -174,7 +174,7 @@ void __attribute__((section(".flashmem"))) TPD3IO::checkAll(void)
  *
  * @return Returns D3_PLL_LOCKED if locked, otherwise D3_PLL_NOT_LOCKED
  */
-uint8_t __attribute__((section(".flashmem"))) TPD3IO::pllStatus(void)
+uint8_t __attribute__((section(".flashmem"))) D3io::pllStatus(void)
 {
 	for (size_t i = 0; i < 8; i++) // 2 seconds
 	{
