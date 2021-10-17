@@ -4,17 +4,16 @@
  * @brief IMXRT1060 HW S/PDIF
  * @version 0.1
  * @date 2021-06-22
- * 
+ *
  * @copyright Copyright (c) 2021 Jason Conway. All rights reserved.
- * 
+ *
  */
 
 #include "SPDIFTx.h"
 
 // S/PDIF transmit buffer
-// TCD0_SADDR -> TCD31_SADDR
 static int32_t __attribute__((section(".dmabuffers"), used, aligned(32))) txBuffer[512];
-audio_block_t __attribute__((section(".dmabuffers"), used, aligned(32))) SPDIFTx::silentAudio;
+static audio_block_t __attribute__((section(".dmabuffers"), used, aligned(32))) silentAudio;
 
 audio_block_t *SPDIFTx::leftAudioBuffer[];
 audio_block_t *SPDIFTx::rightAudioBuffer[];
@@ -23,16 +22,17 @@ DMAChannel SPDIFTx::eDMA(false);
 
 /**
  * @brief Construct a new SPDIFTx::SPDIFTx object
- * 
+ *
  */
 SPDIFTx::SPDIFTx(void) : AudioStream(2, inputQueueArray)
 {
+	pinMode(33, OUTPUT);
 	this->init();
 }
 
 /**
- * @brief 
- * 
+ * @brief
+ *
  */
 void __attribute__((section(".flashmem"))) SPDIFTx::init(void)
 {
@@ -48,7 +48,7 @@ void __attribute__((section(".flashmem"))) SPDIFTx::init(void)
 
 	eDMA.attachInterrupt(dmaISR);
 
-	SPDIF_SCR |= SPDIF_SCR_DMA_TX_EN;     // DMA Transmit Request Enable
+	SPDIF_SCR |= SPDIF_SCR_DMA_TX_EN;	  // DMA Transmit Request Enable
 	SPDIF_STC |= SPDIF_STC_TX_ALL_CLK_EN; // SPDIF Transfer Clock Enable
 
 	memset(&silentAudio, 0, sizeof(silentAudio));
@@ -64,22 +64,24 @@ void __attribute__((section(".flashmem"))) SPDIFTx::init(void)
 /**
  * @brief This ISR is triggered twice per major loop since the TCD Control and Status
  * register is set with DMA_TCD_CSR_INTMAJOR and DMA_TCD_CSR_INTHALF
- * 
+ *
  */
 void SPDIFTx::dmaISR(void)
 {
-	uint32_t txOffset = getTxOffset((uint32_t)&txBuffer[0], 2048);
+	int32_t txOffset = getTxOffset((uint32_t)&txBuffer[0], 1024);
 
 	// Clear Interrupt Request Register (pg 138)
 	DMA_CINT = eDMA.channel; // Disable interrupt request for this DMA channel
 
 	int32_t *txBaseAddress = &txBuffer[0] + txOffset;
-	const int32_t *txStopAddress = &txBuffer[0] + txOffset + 256;
 
 	audio_block_t *leftAudio = (leftAudioBuffer[0]) ?: &silentAudio;
 	audio_block_t *rightAudio = (rightAudioBuffer[0]) ?: &silentAudio;
 
-	dmaCopyAudio(txBaseAddress, txStopAddress, (const int16_t *)(leftAudio->data), (const int16_t *)(rightAudio->data));
+	digitalWriteFast(33, 1);
+	spdifInterleave(txBaseAddress, (const int16_t *)(leftAudio->data), (const int16_t *)(rightAudio->data));
+	arm_dcache_flush_delete(txBaseAddress, 1024);
+	digitalWriteFast(33, 0);
 
 	if (leftAudio != &silentAudio && rightAudio != &silentAudio)
 	{
@@ -96,19 +98,19 @@ void SPDIFTx::dmaISR(void)
 }
 
 /**
- * @brief 
- * 
+ * @brief
+ *
  */
 void SPDIFTx::update(void)
 {
 	audio_block_t *leftAudio = receiveReadOnly(leftChannel);
 	audio_block_t *rightAudio = receiveReadOnly(rightChannel);
 
-	__asm__ volatile("CPSID i" ::: "memory");
+	__disable_irq()
 
-	if (leftAudio && rightAudio)
+		if (leftAudio && rightAudio)
 	{
-		// Doing buffer packing in a loop is too slow, has to be done like this 
+		// Doing buffer packing in a loop is too slow, has to be done like this
 		// Left channel switcheroo
 		if (leftAudioBuffer[0] == nullptr)
 		{
@@ -148,9 +150,9 @@ void SPDIFTx::update(void)
 		}
 	}
 
-	__asm__ volatile("CPSIE i" ::: "memory");
+	__enable_irq()
 
-	if (leftAudio && rightAudio)
+		if (leftAudio && rightAudio)
 	{
 		release(leftAudio);
 		release(rightAudio);
@@ -158,55 +160,51 @@ void SPDIFTx::update(void)
 }
 
 /**
- * @brief Copy audio data for left and right channels into txBuffer for 
- * 
- * @param pTx 
- * @param pTxStop 
- * @param leftAudioData 
- * @param rightAudioData 
- * @note With for loop: 16.90 uS
- * 
+ * @brief Set an offset when SADDR is in the second half of the major loop
+ *
+ * @param txSourceAddress
+ * @param sourceBufferSize
+ * @return uint16_t
  */
-inline void __attribute__((optimize("-O1"))) dmaCopyAudio(int32_t *pTx, const int32_t *pTxStop, const int16_t *leftAudioData, const int16_t *rightAudioData)
+inline int32_t SPDIFTx::getTxOffset(uint32_t txSourceAddress, uint32_t sourceBufferSize)
 {
-	do
-	{
-		SCB_CACHE_DCCIMVAC = (uintptr_t)pTx; // D-cache clean and invalidate by MVA to PoC
-		__asm__ volatile("dsb");             // Sync execution stream
-		*pTx++ = (*leftAudioData++) << 8;
-		*pTx++ = (*rightAudioData++) << 8;
-		*pTx++ = (*leftAudioData++) << 8;
-		*pTx++ = (*rightAudioData++) << 8;
-		*pTx++ = (*leftAudioData++) << 8;
-		*pTx++ = (*rightAudioData++) << 8;
-		*pTx++ = (*leftAudioData++) << 8;
-		*pTx++ = (*rightAudioData++) << 8;
-	} while (pTx < pTxStop);
+	return ((uint32_t)(eDMA.TCD->SADDR) < txSourceAddress + sourceBufferSize) ? 0x0100 : 0x0000;
 }
 
 /**
- * @brief 
- * 
- * @param txSourceAddress 
- * @param sourceBufferSize 
- * @return uint16_t 
+ * @brief Interleave leftAudioData and rightAudioData into SPDIF transmit buffer
+ *
+ * @param[in] pTx - DMA Source SADDR
+ * @param[in] leftAudioData - 
+ * @param[in] rightAudioData
+ *
  */
-inline uint32_t SPDIFTx::getTxOffset(uint32_t txSourceAddress, uint32_t sourceBufferSize)
+inline void SPDIFTx::spdifInterleave(int32_t *pTx, const int16_t *leftAudioData, const int16_t *rightAudioData)
 {
-	// Set an offset when SADDR is in the second half of the major loop
-	uint32_t txOffset = 0;
-	uint32_t SADDR = (uint32_t)(eDMA.TCD->SADDR);
-	if (SADDR < (txSourceAddress + sourceBufferSize / 2))
+	// The 16-bit data being sent needs to be positioned in the center two bytes of the 32-bit word, with the 8 least-significant-bits
+	// set to zero. The 8 most-significant-bits are ignored (pg 1966)
+	// Ideally:
+	//		pTx[2*i + 0] = 0x00LLLL00 with LLLL being leftAudioData[i]
+	//		pTx[2*i + 1] = 0x00RRRR00 with RRRR being rightAudioData[i]
+	for (size_t i = 0; i < 128; i += 4)
 	{
-		txOffset = 0x0100; // Apply 256 byte pointer offset
-	}
+		pTx[2 * i] = leftAudioData[i] << 8;
+		pTx[2 * i + 1] = rightAudioData[i] << 8;
 
-	return txOffset;
+		pTx[2 * i + 2] = leftAudioData[i + 1] << 8;
+		pTx[2 * i + 3] = rightAudioData[i + 1] << 8;
+
+		pTx[2 * i + 4] = leftAudioData[i + 2] << 8;
+		pTx[2 * i + 5] = rightAudioData[i + 2] << 8;
+
+		pTx[2 * i + 6] = leftAudioData[i + 3] << 8;
+		pTx[2 * i + 7] = rightAudioData[i + 3] << 8;
+	}
 }
 
 /**
  * @brief Initialize eDMA and configure the Transfer Control Descriptor (TCD)
- * 
+ *
  * @return Returns the eDMA channel number
  */
 uint8_t SPDIFTx::configureDMA(void)
@@ -225,9 +223,9 @@ uint8_t SPDIFTx::configureDMA(void)
 
 	// TCD Signed Minor Loop Offset (pg 161)
 	eDMA.TCD->NBYTES_MLNO =
-		DMA_TCD_NBYTES_DMLOE |              // Apply minor loop offset to the destination address
+		DMA_TCD_NBYTES_DMLOE |				// Apply minor loop offset to the destination address
 		DMA_TCD_NBYTES_MLOFFYES_MLOFF(-8) | // Minor loop offset size
-		DMA_TCD_NBYTES_MLOFFYES_NBYTES(8);  // Transfer 8 bytes for each service request
+		DMA_TCD_NBYTES_MLOFFYES_NBYTES(8);	// Transfer 8 bytes for each service request
 
 	// TCD Last Source Address Adjustment (pg 163)
 	eDMA.TCD->SLAST = -2048; // 2048 bytes to move SADDR back to &txBuffer[0]
@@ -261,9 +259,9 @@ void __attribute__((section(".flashmem"))) SPDIFTx::configureSpdifRegisters(void
 
 	// Analog Audio PLL control Register (pg 1110)
 	CCM_ANALOG_PLL_AUDIO =
-		CCM_ANALOG_PLL_AUDIO_BYPASS |                    // Bypass the PLL
-		CCM_ANALOG_PLL_AUDIO_ENABLE |                    // Enable PLL output
-		CCM_ANALOG_PLL_AUDIO_POST_DIV_SELECT(0b10) |     // 0b10 — Divide by 1
+		CCM_ANALOG_PLL_AUDIO_BYPASS |					 // Bypass the PLL
+		CCM_ANALOG_PLL_AUDIO_ENABLE |					 // Enable PLL output
+		CCM_ANALOG_PLL_AUDIO_POST_DIV_SELECT(0b10) |	 // 0b10 — Divide by 1
 		CCM_ANALOG_PLL_AUDIO_DIV_SELECT(SPDIF_LOOP_DIV); // PLL loop divider
 
 	// Numerator and Denominator of Audio PLL Fractional Loop Divider Register (pg 1112)
@@ -277,14 +275,14 @@ void __attribute__((section(".flashmem"))) SPDIFTx::configureSpdifRegisters(void
 	// Miscellaneous Register 2 (pg 1132)
 	CCM_ANALOG_MISC2 &= ~(CCM_ANALOG_MISC2_AUDIO_DIV_MSB | CCM_ANALOG_MISC2_AUDIO_DIV_LSB);
 
-	CCM_ANALOG_PLL_AUDIO &= ~CCM_ANALOG_PLL_AUDIO_BYPASS; //Disable Bypass
+	CCM_ANALOG_PLL_AUDIO &= ~CCM_ANALOG_PLL_AUDIO_BYPASS; // Disable Bypass
 
 	// CCM Clock Gating Register 5 (pg 1090)
 	CCM_CCGR5 &= ~CCM_CCGR5_SPDIF(CCM_CCGR_ON); // Gate clock before setting CCM_CDCDR
 
 	// CCM D1 Clock Divider Register (pg 1065)
 	CCM_CDCDR =
-		(CCM_CDCDR & ~(CCM_CDCR_SPDIF0_CLK_MASK)) |               // CLK_SEL, CLK_PRED, and CLK_PODF masks
+		(CCM_CDCDR & ~(CCM_CDCR_SPDIF0_CLK_MASK)) |				  // CLK_SEL, CLK_PRED, and CLK_PODF masks
 		CCM_CDCDR_SPDIF0_CLK_SEL(CCM_CDCR_SPDIF0_CLK_SEL_PLL4) |  // Derive clock from PLL4
 		CCM_CDCDR_SPDIF0_CLK_PRED(CCM_CDCR_SPDIF0_CLK_PRED_DIV) | // Divider for spdif0 clock pred
 		CCM_CDCDR_SPDIF0_CLK_PODF(CCM_CDCR_SPDIF0_CLK_PODF_DIV);  // Divider for spdif0 clock podf
@@ -294,7 +292,8 @@ void __attribute__((section(".flashmem"))) SPDIFTx::configureSpdifRegisters(void
 	if (!(SPDIF_SCR & (SPDIF_SCR_DMA_RX_EN | SPDIF_SCR_DMA_TX_EN)))
 	{
 		SPDIF_SCR = SPDIF_SCR_SOFT_RESET; // SPDIF software reset
-		while (SPDIF_SCR & SPDIF_SCR_SOFT_RESET); // Returns one during while resetting
+		while (SPDIF_SCR & SPDIF_SCR_SOFT_RESET)
+			; // Returns one during while resetting
 	}
 	else
 	{
@@ -304,22 +303,22 @@ void __attribute__((section(".flashmem"))) SPDIFTx::configureSpdifRegisters(void
 	// SPDIF Configuration Register (pg 2037)
 	SPDIF_SCR =
 		SPDIF_SCR_RXFIFOFULL_SEL(0b00) |  // Full interrupt if at least 1 sample in Rx left and right FIFOs
-		SPDIF_SCR_RXAUTOSYNC |            // Rx FIFO auto sync on
-		SPDIF_SCR_TXAUTOSYNC |            // Tx FIFO auto sync on
+		SPDIF_SCR_RXAUTOSYNC |			  // Rx FIFO auto sync on
+		SPDIF_SCR_TXAUTOSYNC |			  // Tx FIFO auto sync on
 		SPDIF_SCR_TXFIFOEMPTY_SEL(0b10) | // Empty interrupt if at most 8 samples in Tx left and right FIFOs
-		SPDIF_SCR_TXFIFO_CTRL(0b01) |     // Tx Normal operation
-		SPDIF_SCR_VALCTRL |               // Outgoing Validity always clear
-		SPDIF_SCR_TXSEL(0b101) |          // Tx Normal operation
-		SPDIF_SCR_USRC_SEL(0b11);         // U channel from on chip transmitter
+		SPDIF_SCR_TXFIFO_CTRL(0b01) |	  // Tx Normal operation
+		SPDIF_SCR_VALCTRL |				  // Outgoing Validity always clear
+		SPDIF_SCR_TXSEL(0b101) |		  // Tx Normal operation
+		SPDIF_SCR_USRC_SEL(0b11);		  // U channel from on chip transmitter
 
 	// PhaseConfig Register (pg 2040)
 	SPDIF_SRPC =
-		SPDIF_SRPC_CLKSRC_SEL(0b001) |       // Clock source selection if (DPLL Locked) SPDIF_RxClk else tx_clk (SPDIF0_CLK_ROOT)
+		SPDIF_SRPC_CLKSRC_SEL(0b001) |		 // Clock source selection if (DPLL Locked) SPDIF_RxClk else tx_clk (SPDIF0_CLK_ROOT)
 		SPDIF_SRPC_GAINSEL(SPDIF_DPLL_GAIN); // Gain selection
 
 	// SPDIFTxClk Register (pg 2052)
 	SPDIF_STC =
-		SPDIF_STC_TXCLK_SOURCE(0b001) |    // tx_clk input (from SPDIF0_CLK_ROOT)
+		SPDIF_STC_TXCLK_SOURCE(0b001) |	   // tx_clk input (from SPDIF0_CLK_ROOT)
 		SPDIF_STC_TXCLK_DF(SPDIF_STC_DIV); // Divider factor (1-128)
 
 	// SW_MUX_CTL_PAD_GPIO_AD_B1_02 SW MUX Control Register (pg 494)
