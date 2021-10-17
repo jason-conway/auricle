@@ -12,14 +12,15 @@
 #include "ash.h"
 
 Subshell subshell(SerialUSB);
-TPD3IO tpd3io;
+D3io d3io;
+usb_serial_class *Ash::stream = nullptr;
 
-ASH::ASH(void)
+Ash::Ash(usb_serial_class &ioStream)
 {
-
+	stream = &ioStream;
 }
 
-void ASH::init(void)
+void Ash::init(void)
 {
 	subshell.newCmd("shPrompt", "", this->hostname); // Set hostname / prompt
 	subshell.newCmd("unkCmd", "", this->unknownCommand);
@@ -39,103 +40,103 @@ void ASH::init(void)
 	this->motd();
 }
 
-void ASH::execLoop(void)
+void Ash::execLoop(void)
 {
 	subshell.run();
 }
 
-void ASH::togglePower(void *)
+void Ash::togglePower(void *)
 {
-	tpd3io.togglePower();
-	SerialUSB.printf("Done\r\n");
+	d3io.togglePower();
+	stream->printf("Done\r\n");
 }
 
-void ASH::setAngle(void *)
+void Ash::setAngle(void *)
 {
 	char *cmdArg = nullptr;
 	if (subshell.getArg(&cmdArg))
 	{
-		uint16_t angle = static_cast<uint16_t>(atoi(cmdArg));
-		SerialUSB.printf("Setting angle: %d degrees\r\n", angle);
-		convolvIR.convertIR(__builtin_round(static_cast<float32_t>(angle) / 3.6));
-		SerialUSB.printf("Done\r\n");
+		uint16_t angle = (uint16_t)(atoi(cmdArg));
+		stream->printf("Setting angle: %d degrees\r\n", angle);
+		convolvIR.convertIR(__builtin_round((float32_t)(angle) / 3.6));
+		stream->printf("Done\r\n");
 	}
 	else
 	{
-		SerialUSB.printf("Error: incorrect syntax\r\n");
+		stream->printf("Error: incorrect syntax\r\n");
 	}
 }
 
-void ASH::switchInput(void *)
+void Ash::switchInput(void *)
 {
-	tpd3io.switchInput();
+	d3io.switchInput();
 }
 
-void ASH::currentStatus(void *)
+void Ash::currentStatus(void *)
 {
-	tpd3io.currentStatus();
+	d3io.currentStatus();
 }
 
-void ASH::listCommands(void *)
+void Ash::listCommands(void *)
 {
 	subshell.listCmds();
 }
 
-void ASH::audioMemory(void *)
+void Ash::audioMemory(void *)
 {
-	SerialUSB.printf("Active memory usage: %.2u%%\r\n", AudioStream::memory_used);
-	SerialUSB.printf("Maximum memory usage: %.2u%%\r\n", AudioStream::memory_used_max);
+	stream->printf("Active memory usage: %u bytes\r\n", AudioStream::memory_used);
+	stream->printf("Maximum memory usage: %u bytes\r\n", AudioStream::memory_used_max);
 }
 
-void ASH::audioPassthrough(void *)
+void Ash::audioPassthrough(void *)
 {
-	SerialUSB.printf("Audio Passthough %s\r\n", convolvIR.togglePassthrough() ? "Enabled" : "Disabled");
+	stream->printf("Audio Passthough %s\r\n", convolvIR.togglePassthrough() ? "Enabled" : "Disabled");
 }
 
-void ASH::showHelp(void *)
+void Ash::showHelp(void *)
 {
 	subshell.showHelp();
 }
 
-void ASH::memoryUse(void *)
+void Ash::memoryUse(void *)
 {
 	extern unsigned long _heap_end;
 	extern char *__brkval;
-	SerialUSB.printf("Memory free: %8d\r\n", (reinterpret_cast<char *>(&_heap_end) - __brkval));
+	stream->printf("Memory free: %8d\r\n", (char *)(&_heap_end) - __brkval);
 }
 
-void ASH::reboot(void *)
+void Ash::reboot(void *)
 {
-	usb_serial_flush_output();
-	usb_serial_flush_input();
-	SerialUSB.printf("Auricle Rebooting\r\n");
-	*reinterpret_cast<volatile uint32_t *>(0xE000ED0C) = 0x05FA0004;
+	stream->flush();
+	stream->clear();
+	stream->printf("Auricle Rebooting\r\n");
+	*(volatile uint32_t *)0xE000ED0C = 0x05FA0004;
 }
 
-void ASH::unknownCommand(void *)
+void Ash::unknownCommand(void *)
 {
-	ASH::hostname(nullptr);
-	SerialUSB.printf("Unknown command\r\n");
-	SerialUSB.flush();
+	Ash::hostname(nullptr);
+	stream->printf("Unknown command\r\n");
+	stream->flush();
 }
 
-void ASH::clear(void *)
+void Ash::clear(void *)
 {
 	const char clrSeq[] = {0x1B, 0x5B, 0x32, 0x4A, 0x00};
-	SerialUSB.printf("%s", clrSeq);
+	stream->printf("%s", clrSeq);
 }
 
-void ASH::hostname(void *)
+void Ash::hostname(void *)
 {
-	SerialUSB.printf("ash %% ");
-	SerialUSB.flush();
+	stream->printf("ash %% ");
+	stream->flush();
 }
 
-void ASH::motd(void)
+void Ash::motd(void)
 {
 	this->clear(nullptr);
-	SerialUSB.printf("Auricle Shell\r\n");
-	SerialUSB.printf("Version 0.1\r\n");
-	SerialUSB.printf("Copyright (c) 2021 Jason Conway\r\n\r\n");
+	stream->printf("Auricle Shell\r\n");
+	stream->printf("Version 0.1\r\n");
+	stream->printf("Copyright (c) 2021 Jason Conway\r\n\r\n");
 	this->hostname(nullptr);
 }

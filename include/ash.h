@@ -13,17 +13,19 @@
 
 #include "auricle.h"
 #include "subshell.h"
-#include "tpd3io.h"
+#include "d3io.h"
 #include "convolvIR.h"
 
-class ASH
+class Ash
 {
 public:
-	ASH(void);
+	Ash(usb_serial_class &ioStream = SerialUSB);
 	void execLoop(void);
 	void init(void);
 
 private:
+	static usb_serial_class *stream;
+	
 	void motd(void);
 
 	static void togglePower(void *);
