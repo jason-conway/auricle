@@ -21,33 +21,20 @@ ASH::ASH(void)
 
 void ASH::init(void)
 {
-	subshell.newCmd("hostname", "", this->hostname, nullptr); // Set hostname / prompt
-	subshell.newCmd("unknown", "", this->unknownCommand, nullptr); 
-	subshell.newCmd("help", "Show help for the specified command", this->showHelp, nullptr); 
+	subshell.newCmd("shPrompt", "", this->hostname); // Set hostname / prompt
+	subshell.newCmd("unkCmd", "", this->unknownCommand);
+	subshell.newCmd("help", "Show help for the specified command", this->showHelp);
 
-	subshell.newCmd("togglepower", "Toggle power on the D3", this->togglePower, nullptr);
-	subshell.newCmd("togglemode", "Toggle D3 input mode", this->switchInput, nullptr);
-	subshell.newCmd("pttoggle", "Toggle audio passthrough", this->audioPassthrough, nullptr);
-	subshell.newCmd("status", "Get status of the D3", this->currentStatus, nullptr);
-	subshell.newCmd("sangle", "Set HRIR angle", this->setAngle, nullptr);
-	subshell.newCmd("audiomemory", "View current and maximum audio memory", this->audioMemory, nullptr);
-	subshell.newCmd("reboot", "Reboot Auricle", this->reboot, nullptr);
-	subshell.newCmd("clear", "Clear screen", this->clear, nullptr);
-	subshell.newCmd("memuse", "View amount of RAM free", this->memoryUse, nullptr);
-	subshell.newCmd("lscmd", "List all commands", this->listCommands, nullptr);
-
-	if (subshell.status < 0)
-	{
-		if (subshell.status == SUBSHELL_REALLOC_FAILURE)
-		{
-			SerialUSB.printf(flashmem("Error: realloc"));
-		}
-		if (subshell.status == SUBSHELL_SNPRINTF_FAILURE)
-		{
-			SerialUSB.printf(flashmem("Error: snprintf"));
-		}
-		subshell.~Subshell();
-	}
+	subshell.newCmd("togglepower", "Toggle power on the D3", this->togglePower);
+	subshell.newCmd("togglemode", "Toggle D3 input mode", this->switchInput);
+	subshell.newCmd("pttoggle", "Toggle audio passthrough", this->audioPassthrough);
+	subshell.newCmd("status", "Get status of the D3", this->currentStatus);
+	subshell.newCmd("sangle", "Set HRIR angle", this->setAngle);
+	subshell.newCmd("audiomemory", "View current and maximum audio memory", this->audioMemory);
+	subshell.newCmd("reboot", "Reboot Auricle", this->reboot);
+	subshell.newCmd("clear", "Clear screen", this->clear);
+	subshell.newCmd("memuse", "View amount of RAM free", this->memoryUse);
+	subshell.newCmd("lscmd", "List all commands", this->listCommands);
 
 	this->motd();
 }
