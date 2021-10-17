@@ -48,28 +48,28 @@ void __attribute__((section(".flashmem"))) TPD3IO::init(void)
 	volatile uint32_t *gpio_bnc_pad = static_cast<volatile uint32_t *>(&GPIO_PAD_SIG_BNC);
 
 	*(gpio_pow_reg + 1) |= GPIO_MASK_SIG_POW;
-	*(gpio_pow_pad) = IOMUXC_PAD_DSE(7);
-	*(gpio_pow_mux) = GPIO_MUX_MODE_ALT5;
+	*gpio_pow_pad = IOMUXC_PAD_DSE(7);
+	*gpio_pow_mux = GPIO_MUX_MODE_ALT5;
 
 	*(gpio_sel_reg + 1) |= GPIO_MASK_SIG_SEL;
-	*(gpio_sel_pad) = IOMUXC_PAD_DSE(7);
-	*(gpio_sel_mux) = GPIO_MUX_MODE_ALT5;
+	*gpio_sel_pad = IOMUXC_PAD_DSE(7);
+	*gpio_sel_mux = GPIO_MUX_MODE_ALT5;
 
 	*(gpio_usb_reg + 1) &= ~GPIO_MASK_SIG_USB;
-	*(gpio_usb_pad) = IOMUXC_PAD_DSE(7);
-	*(gpio_usb_mux) = GPIO_MUX_MODE_ALT5;
+	*gpio_usb_pad = IOMUXC_PAD_DSE(7);
+	*gpio_usb_mux = GPIO_MUX_MODE_ALT5;
 
 	*(gpio_opt_reg + 1) &= ~GPIO_MASK_SIG_OPT;
-	*(gpio_opt_pad) = IOMUXC_PAD_DSE(7);
-	*(gpio_opt_mux) = GPIO_MUX_MODE_ALT5;
+	*gpio_opt_pad = IOMUXC_PAD_DSE(7);
+	*gpio_opt_mux = GPIO_MUX_MODE_ALT5;
 
 	*(gpio_rca_reg + 1) &= ~GPIO_MASK_SIG_RCA;
-	*(gpio_rca_pad) = IOMUXC_PAD_DSE(7);
-	*(gpio_rca_mux) = GPIO_MUX_MODE_ALT5;
+	*gpio_rca_pad = IOMUXC_PAD_DSE(7);
+	*gpio_rca_mux = GPIO_MUX_MODE_ALT5;
 
 	*(gpio_bnc_reg + 1) &= ~GPIO_MASK_SIG_BNC;
-	*(gpio_bnc_pad) = IOMUXC_PAD_DSE(7);
-	*(gpio_bnc_mux) = GPIO_MUX_MODE_ALT5;
+	*gpio_bnc_pad = IOMUXC_PAD_DSE(7);
+	*gpio_bnc_mux = GPIO_MUX_MODE_ALT5;
 
 	d3status.mode = ModeNull;
 	d3status.power = PowerNull;
@@ -83,7 +83,7 @@ void __attribute__((section(".flashmem"))) TPD3IO::init(void)
 void __attribute__((section(".flashmem"))) TPD3IO::togglePower(void)
 {
 	GPIO6_DR_SET = GPIO_MASK_SIG_POW;
-	msleep(250);
+	msleep(50);
 	GPIO6_DR_CLEAR = GPIO_MASK_SIG_POW;
 
 	this->checkAll();
@@ -97,6 +97,7 @@ void __attribute__((section(".flashmem"))) TPD3IO::togglePower(void)
  */
 void __attribute__((section(".flashmem"))) TPD3IO::switchInput(void)
 {
+	this->checkAll();
 	uint8_t currentMode = d3status.mode;
 	uint8_t targetMode = (currentMode == ModeOPT) ? ModeUSB : ModeOPT;
 
@@ -104,8 +105,9 @@ void __attribute__((section(".flashmem"))) TPD3IO::switchInput(void)
 	do
 	{
 		GPIO6_DR_SET = GPIO_MASK_SIG_SEL;
-		msleep(250);
+		msleep(50);
 		GPIO6_DR_CLEAR = GPIO_MASK_SIG_SEL;
+		this->checkAll();
 	} while (d3status.mode != targetMode);
 
 	SerialUSB.printf("Done\r\n");
