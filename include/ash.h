@@ -38,9 +38,9 @@ private:
 	static void reboot(void *);
 	static void clear(void *);
 	static void memoryUse(void *);
-	static void listCommands(void *);
+	static void lscmds(void *);
 
 	static void unknownCommand(void *);
 	static void hostname(void *);
-	static void showHelp(void *);
+	static void help(void *);
 };

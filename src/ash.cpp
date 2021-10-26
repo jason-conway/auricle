@@ -11,7 +11,6 @@
 
 #include "ash.h"
 
-Subshell subshell(SerialUSB);
 D3io d3io;
 usb_serial_class *Ash::stream = nullptr;
 
@@ -22,27 +21,27 @@ Ash::Ash(usb_serial_class &ioStream)
 
 void Ash::init(void)
 {
-	subshell.newCmd("shPrompt", "", this->hostname); // Set hostname / prompt
-	subshell.newCmd("unkCmd", "", this->unknownCommand);
-	subshell.newCmd("help", "Show help for the specified command", this->showHelp);
+	newCmd("shPrompt", "", this->hostname); // Set hostname / prompt
+	newCmd("unkCmd", "", this->unknownCommand);
+	newCmd("help", "Show help for the specified command", this->help);
 
-	subshell.newCmd("togglepower", "Toggle power on the D3", this->togglePower);
-	subshell.newCmd("togglemode", "Toggle D3 input mode", this->switchInput);
-	subshell.newCmd("pttoggle", "Toggle audio passthrough", this->audioPassthrough);
-	subshell.newCmd("status", "Get status of the D3", this->currentStatus);
-	subshell.newCmd("sangle", "Set HRIR angle", this->setAngle);
-	subshell.newCmd("audiomemory", "View current and maximum audio memory", this->audioMemory);
-	subshell.newCmd("reboot", "Reboot Auricle", this->reboot);
-	subshell.newCmd("clear", "Clear screen", this->clear);
-	subshell.newCmd("memuse", "View amount of RAM free", this->memoryUse);
-	subshell.newCmd("lscmd", "List all commands", this->listCommands);
+	newCmd("togglepower", "Toggle power on the D3", this->togglePower);
+	newCmd("togglemode", "Toggle D3 input mode", this->switchInput);
+	newCmd("pttoggle", "Toggle audio passthrough", this->audioPassthrough);
+	newCmd("status", "Get status of the D3", this->currentStatus);
+	newCmd("sangle", "Set HRIR angle", this->setAngle);
+	newCmd("audiomemory", "View current and maximum audio memory", this->audioMemory);
+	newCmd("reboot", "Reboot Auricle", this->reboot);
+	newCmd("clear", "Clear screen", this->clear);
+	newCmd("memuse", "View amount of RAM free", this->memoryUse);
+	newCmd("lscmd", "List all commands", this->lscmds);
 
 	this->motd();
 }
 
 void Ash::execLoop(void)
 {
-	subshell.run();
+	run();
 }
 
 void Ash::togglePower(void *)
@@ -53,8 +52,8 @@ void Ash::togglePower(void *)
 
 void Ash::setAngle(void *)
 {
-	char *cmdArg = nullptr;
-	if (subshell.getArg(&cmdArg))
+	char *cmdArg = NULL;
+	if (getArg(&cmdArg))
 	{
 		uint16_t angle = (uint16_t)(atoi(cmdArg));
 		stream->printf("Setting angle: %d degrees\r\n", angle);
@@ -77,9 +76,9 @@ void Ash::currentStatus(void *)
 	d3io.currentStatus();
 }
 
-void Ash::listCommands(void *)
+void Ash::lscmds(void *)
 {
-	subshell.listCmds();
+	listCmds();
 }
 
 void Ash::audioMemory(void *)
@@ -93,9 +92,9 @@ void Ash::audioPassthrough(void *)
 	stream->printf("Audio Passthough %s\r\n", convolvIR.togglePassthrough() ? "Enabled" : "Disabled");
 }
 
-void Ash::showHelp(void *)
+void Ash::help(void *)
 {
-	subshell.showHelp();
+	showHelp();
 }
 
 void Ash::memoryUse(void *)
