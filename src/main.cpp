@@ -11,25 +11,29 @@
 
 #include "convolvIR.h"
 #include "auricle.h"
-#include "SPDIFTx.h"
+#include "spdifTx.h"
 #include "ash.h"
 
 AudioInputUSB stereoIn;
-SPDIFTx stereoOut;
+SpdifTx stereoOut;
 ConvolvIR convolvIR;
 
+// AudioConnection passthoughLeft(stereoIn, leftChannel, stereoOut, leftChannel);
+// AudioConnection passthroughRight(stereoIn, rightChannel, stereoOut, rightChannel);
 AudioConnection leftInConv(stereoIn, leftChannel, convolvIR, leftChannel);
 AudioConnection rightInConv(stereoIn, rightChannel, convolvIR, rightChannel);
 AudioConnection leftOutConv(convolvIR, leftChannel, stereoOut, leftChannel);
 AudioConnection rightOutConv(convolvIR, rightChannel, stereoOut, rightChannel);
 
-ASH ash;
+Ash ash;
+
+usb_serial_class *stdStream = &SerialUSB;
 
 int main(void)
 {
-	SerialUSB.begin(115200);
+	stdStream->begin(115200);
 	
-	while (!(SerialUSB))
+	while (!(stdStream))
 	{
 		msleep(100);
 	}

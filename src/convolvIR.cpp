@@ -12,7 +12,7 @@
 #include "convolvIR.h"
 #include "tablIR.h"
 
-#pragma GCC optimize ("O3") // Out-performs Ofast
+// #pragma GCC optimize ("O1") // Out-performs Ofast
 
 /**
  * @brief Construct a new ConvolvIR::ConvolvIR object
@@ -32,6 +32,7 @@ void ConvolvIR::init(void)
 	clearAllArrays();
 	partitionIndex = 0;
 	audioPassthrough = true;
+
 }
 
 /**
@@ -61,7 +62,6 @@ void ConvolvIR::convertIR(uint8_t irIndex)
 			}
 
 			arm_cfft_f32(&arm_cfft_sR_f32_len256, impulsePartitionBuffer, ForwardFFT, 1);
-
 			arm_copy_f32(impulsePartitionBuffer, !(i) ? hrtf.leftTF[j] : hrtf.rightTF[j], 512);
 		}
 	}
@@ -76,17 +76,17 @@ void ConvolvIR::convolve(void)
 {
 	arm_cfft_f32(&arm_cfft_sR_f32_len256, overlappedAudio, ForwardFFT, 1);
 	arm_copy_f32(overlappedAudio, frequencyDelayLine[partitionIndex], 512);
-
+	// #pragma GCC unroll 2
 	for (size_t i = 0; i < 2; i++) // Two iterations - left and right
 	{
 		arm_fill_f32(0.0f, multAccum, 512); // Clear out previous data in accumulator
 
 		int16_t shiftIndex = partitionIndex; // Set new starting point for sliding convolutionPartitions over the FFT of the impulse response
-
+		
 		for (size_t j = 0; j < partitionCount; j++)
 		{
 			arm_cmplx_mult_cmplx_f32(frequencyDelayLine[shiftIndex], !(i) ? hrtf.leftTF[j] : hrtf.rightTF[j], cmplxProduct, 256);
-
+			
 			arm_add_f32(multAccum, cmplxProduct, multAccum, 512);
 
 			// Decrease counter by 1 until we've reached zero, then restart
@@ -156,10 +156,10 @@ void ConvolvIR::update(void)
 			return;
 		}
 
-		uint32_t startCycles = ARM_DWT_CYCCNT;
+		// uint32_t startCycles = ARM_DWT_CYCCNT;
 
 		// Disable interrupts while computing the convolution
-		__asm__ volatile("CPSID i" ::: "memory");
+		__disable_irq();
 
 		// Use float32 for higher precision intermediate calculations
 		arm_q15_to_float(leftAudio->data, leftAudioData, 128);
@@ -183,10 +183,10 @@ void ConvolvIR::update(void)
 
 		// Increase counter by 1 until we've reached the number of partitions, then reset counter to 0
 		partitionIndex = ((partitionIndex + 1) >= partitionCount) ? 0 : (partitionIndex + 1);
-		if (partitionIndex % 5)
-		{
-			SerialUSB.printf("Cycles: %d\r\n", ARM_DWT_CYCCNT - startCycles);
-		}
+		// if (partitionIndex % 10)
+		// {
+		// 	SerialUSB.printf("Cycles: %d\r\n", ARM_DWT_CYCCNT - startCycles);
+		// }
 		
 		arm_float_to_q15(leftAudioData, leftAudio->data, 128);
 		arm_float_to_q15(rightAudioData, rightAudio->data, 128);
@@ -196,7 +196,7 @@ void ConvolvIR::update(void)
 		transmit(rightAudio, rightChannel);
 
 		// Re-enable interrupts
-		__asm__ volatile("CPSIE i" ::: "memory");
+		__enable_irq();
 
 		release(leftAudio);
 		release(rightAudio);
