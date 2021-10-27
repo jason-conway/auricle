@@ -32,7 +32,6 @@ void ConvolvIR::init(void)
 	clearAllArrays();
 	partitionIndex = 0;
 	audioPassthrough = true;
-
 }
 
 /**
@@ -76,7 +75,6 @@ void ConvolvIR::convolve(void)
 {
 	arm_cfft_f32(&arm_cfft_sR_f32_len256, overlappedAudio, ForwardFFT, 1);
 	arm_copy_f32(overlappedAudio, frequencyDelayLine[partitionIndex], 512);
-	// #pragma GCC unroll 2
 	for (size_t i = 0; i < 2; i++) // Two iterations - left and right
 	{
 		arm_fill_f32(0.0f, multAccum, 512); // Clear out previous data in accumulator
@@ -156,8 +154,6 @@ void ConvolvIR::update(void)
 			return;
 		}
 
-		// uint32_t startCycles = ARM_DWT_CYCCNT;
-
 		// Disable interrupts while computing the convolution
 		__disable_irq();
 
@@ -183,10 +179,6 @@ void ConvolvIR::update(void)
 
 		// Increase counter by 1 until we've reached the number of partitions, then reset counter to 0
 		partitionIndex = ((partitionIndex + 1) >= partitionCount) ? 0 : (partitionIndex + 1);
-		// if (partitionIndex % 10)
-		// {
-		// 	SerialUSB.printf("Cycles: %d\r\n", ARM_DWT_CYCCNT - startCycles);
-		// }
 		
 		arm_float_to_q15(leftAudioData, leftAudio->data, 128);
 		arm_float_to_q15(rightAudioData, rightAudio->data, 128);
