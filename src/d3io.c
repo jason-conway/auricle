@@ -1,5 +1,5 @@
 /**
- * @file d3io.cpp
+ * @file d3io.c
  * @author Jason Conway (jpc@jasonconway.dev)
  * @brief Spatial Audio for Arm Cortex-M7
  * @version 0.1
@@ -11,20 +11,41 @@
 
 #include "d3io.h"
 
-/**
- * @brief Construct a new D3io::D3io object
- *
- */
-D3io::D3io(void)
+enum D3InputMode
 {
-	init();
-}
+	ModeNull,
+	ModeUSB,
+	ModeOPT,
+	ModeRCA,
+	ModeBNC
+};
+
+enum D3Power
+{
+	PowerNull,
+	PowerOff,
+	PowerOn
+};
+
+enum D3_PLL_Return_Codes
+{
+	NotLocked,
+	Locked
+};
+
+typedef struct status_t
+{
+	uint8_t power;
+	uint8_t mode;
+} status_t;
+
+status_t d3status;
 
 /**
  * @brief Configure GPIO for interfacing with the D3
  *
  */
-void __attribute__((section(".flashmem"))) D3io::init(void)
+void __attribute__((section(".flashmem"))) d3initGPIO(void)
 {
 	volatile uint32_t *gpio_pow_reg = (volatile uint32_t *)(&GPIO_DR_SIG_OUT);
 	volatile uint32_t *gpio_sel_reg = (volatile uint32_t *)(&GPIO_DR_SIG_OUT);
@@ -73,74 +94,13 @@ void __attribute__((section(".flashmem"))) D3io::init(void)
 
 	d3status.mode = ModeNull;
 	d3status.power = PowerNull;
-	this->checkAll();
-}
-
-/**
- * @brief Write SIG_POW HIGH for 50ms to toggle power on the D3 board
- *
- */
-void __attribute__((section(".flashmem"))) D3io::togglePower(void)
-{
-	GPIO6_DR_SET = GPIO_MASK_SIG_POW;
-	msleep(50);
-	GPIO6_DR_CLEAR = GPIO_MASK_SIG_POW;
-
-	this->checkAll();
-
-	d3status.power = (d3status.mode) ? PowerOn : PowerOff;
-}
-
-/**
- * @brief Write SIG_SEL HIGH for 50ms switch inputs on the D3 board
- *
- */
-void __attribute__((section(".flashmem"))) D3io::switchInput(void)
-{
-	this->checkAll();
-	uint8_t currentMode = d3status.mode;
-	uint8_t targetMode = (currentMode == ModeOPT) ? ModeUSB : ModeOPT;
-
-	SerialUSB.printf("Switching to mode: %s\r\n", (currentMode == ModeOPT) ? "USB" : "OPT");
-	do
-	{
-		GPIO6_DR_SET = GPIO_MASK_SIG_SEL;
-		msleep(50);
-		GPIO6_DR_CLEAR = GPIO_MASK_SIG_SEL;
-		this->checkAll();
-	} while (d3status.mode != targetMode);
-
-	SerialUSB.printf("Done\r\n");
-}
-
-/**
- * @brief Report current status of the D3
- *
- */
-void __attribute__((section(".flashmem"))) D3io::currentStatus(void)
-{
-	this->checkAll();
-	SerialUSB.printf("Current Input: ");
-	switch (d3status.mode)
-	{
-	case ModeUSB:
-		SerialUSB.printf("USB\r\n");
-		break;
-	case ModeOPT:
-		SerialUSB.printf("Optical\r\n");
-		SerialUSB.printf("PLL is %s\r\n", (this->pllStatus() == Locked) ? "locked" : "not locked");
-		break;
-	default:
-		SerialUSB.printf("NULL\r\n");
-		break;
-	}
 }
 
 /**
  * @brief Check all D3 inputs and set d3status.mode
  *
  */
-void __attribute__((section(".flashmem"))) D3io::checkAll(void)
+void __attribute__((section(".flashmem"))) checkAll(void)
 {
 	if (GPIO_PSR_SIG_IN & GPIO_MASK_SIG_USB)
 	{
@@ -170,11 +130,48 @@ void __attribute__((section(".flashmem"))) D3io::checkAll(void)
 }
 
 /**
+ * @brief Write SIG_POW HIGH for 50ms to toggle power on the D3 board
+ *
+ */
+void __attribute__((section(".flashmem"))) d3togglePower(void)
+{
+	GPIO6_DR_SET = GPIO_MASK_SIG_POW;
+	msleep(50);
+	GPIO6_DR_CLEAR = GPIO_MASK_SIG_POW;
+
+	checkAll();
+
+	d3status.power = (d3status.mode) ? PowerOn : PowerOff;
+}
+
+/**
+ * @brief Write SIG_SEL HIGH for 50ms switch inputs on the D3 board
+ *
+ */
+void __attribute__((section(".flashmem"))) d3switchInput(void)
+{
+	checkAll();
+	uint8_t currentMode = d3status.mode;
+	uint8_t targetMode = (currentMode == ModeOPT) ? ModeUSB : ModeOPT;
+
+	printf("Switching to mode: %s\r\n", (currentMode == ModeOPT) ? "USB" : "OPT");
+	do
+	{
+		GPIO6_DR_SET = GPIO_MASK_SIG_SEL;
+		msleep(50);
+		GPIO6_DR_CLEAR = GPIO_MASK_SIG_SEL;
+		checkAll();
+	} while (d3status.mode != targetMode);
+
+	printf("Done\r\n");
+}
+
+/**
  * @brief Check if the D3's PLL is locked
  *
  * @return Returns D3_PLL_LOCKED if locked, otherwise D3_PLL_NOT_LOCKED
  */
-uint8_t __attribute__((section(".flashmem"))) D3io::pllStatus(void)
+uint8_t __attribute__((section(".flashmem"))) pllStatus(void)
 {
 	for (size_t i = 0; i < 8; i++) // 2 seconds
 	{
@@ -187,3 +184,28 @@ uint8_t __attribute__((section(".flashmem"))) D3io::pllStatus(void)
 	}
 	return Locked;
 }
+
+/**
+ * @brief Report current status of the D3
+ *
+ */
+void __attribute__((section(".flashmem"))) d3currentStatus(void)
+{
+	checkAll();
+	printf("Current Input: ");
+	switch (d3status.mode)
+	{
+	case ModeUSB:
+		printf("USB\r\n");
+		break;
+	case ModeOPT:
+		printf("Optical\r\n");
+		printf("PLL is %s\r\n", (pllStatus() == Locked) ? "locked" : "not locked");
+		break;
+	default:
+		printf("NULL\r\n");
+		break;
+	}
+}
+
+

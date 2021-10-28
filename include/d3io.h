@@ -49,47 +49,16 @@
 // MUX_MODE ALT5 ==> GPIO
 #define GPIO_MUX_MODE_ALT5 (0b0101 | 0b00010000)
 
-class D3io
+
+#ifdef __cplusplus
+extern "C"
 {
-public:
-	D3io(void);
-	void togglePower(void);
-	void switchInput(void);
-	void currentStatus(void);
+#endif
+	void d3initGPIO(void);
+	void d3togglePower(void);
+	void d3switchInput(void);
+	void d3currentStatus(void);
+#ifdef __cplusplus
+}
+#endif
 
-private:
-	void init(void);
-	uint8_t readGPIO(void);
-	void checkAll(void);
-	uint8_t pllStatus(void);
-
-	enum D3InputMode
-	{
-		ModeNull,
-		ModeUSB,
-		ModeOPT,
-		ModeRCA,
-		ModeBNC
-	};
-
-	enum D3Power
-	{
-		PowerNull,
-		PowerOff,
-		PowerOn
-	};
-
-	enum D3_PLL_Return_Codes
-	{
-		NotLocked,
-		Locked
-	};
-
-	typedef struct D3Status
-	{
-		uint8_t power;
-		uint8_t mode;
-	} D3Status;
-
-	D3Status d3status;
-};

@@ -11,8 +11,6 @@
 
 #include "ash.h"
 
-D3io d3io;
-
 int _write(int FILE, char *writeBuffer, int writeBufferLength)
 {
 	return usb_serial_write(writeBuffer, writeBufferLength);
@@ -41,6 +39,7 @@ Ash::Ash(void)
 void Ash::init(void)
 {
 	initSubshell();
+	d3initGPIO();
 
 	newCmd("shPrompt", "", this->hostname); // Set hostname / prompt
 	newCmd("unkCmd", "", this->unknownCommand);
@@ -67,7 +66,7 @@ void Ash::execLoop(void)
 
 void Ash::togglePower(void *)
 {
-	d3io.togglePower();
+	d3togglePower();
 	printf("Done\r\n");
 }
 
@@ -89,12 +88,12 @@ void Ash::setAngle(void *)
 
 void Ash::switchInput(void *)
 {
-	d3io.switchInput();
+	d3switchInput();
 }
 
 void Ash::currentStatus(void *)
 {
-	d3io.currentStatus();
+	d3currentStatus();
 }
 
 void Ash::lscmds(void *)
