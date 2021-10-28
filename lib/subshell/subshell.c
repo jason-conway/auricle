@@ -53,15 +53,6 @@ typedef struct string_t
 shell_t shell;
 string_t str;
 
-/**
- * @brief Direct stdout to the right place
- * 
- */
-int _write(int handle, char *buf, int count)
-{
-	return usb_serial_write(buf, count);
-}
-
 void initSubshell(void)
 {
 	shell.cmd = NULL;
@@ -215,10 +206,10 @@ void parseCmdString(void)
 void run(void)
 {
 	bool EOL = false; // End-of-line flag: true when CR or LF are read from stream buffer
-	while (usb_serial_available())
-	{
-		char serialChar = (char)usb_serial_getchar();
-		switch (serialChar)
+	while (_available())
+	{	
+		char readChar = _getchar();
+		switch (readChar)
 		{
 		case '\b':				 // Backspace
 			if (str.cIndex > 0) // cStr has characters to be backspaced
@@ -239,23 +230,24 @@ void run(void)
 			EOL = true;
 			printf("\r\n");
 
-			if (usb_serial_available())
+			if (_available())
 			{
-				if (usb_serial_peekchar() == '\n') // CR+LF
+				if (_peekchar() == '\n') // CR+LF
 				{
-					usb_serial_getchar(); // Pull LF from the RX buffer
+					_getchar(); // Pull LF from the RX buffer
 				}
 			}
 			goto jmpOut;
 
 		default:
 			// Echo printable characters
-			if ((serialChar - 0x20) < 0x5F)
+			if ((readChar - 0x20) < 0x5F)
 			{
-				usb_serial_putchar(serialChar);
+				printf("%c", readChar);
+				fflush(stdout);
 			}
 
-			str.cStr[str.cIndex++] = serialChar;
+			str.cStr[str.cIndex++] = readChar;
 			str.cStr[str.cIndex] = '\0';
 			break;
 		}
@@ -264,6 +256,7 @@ void run(void)
 jmpOut:
 	if (EOL)
 	{
+		fflush(stdout);
 		parseCmdString();
 		str.cStr[0] = '\0';
 		str.cIndex = 0;

@@ -21,6 +21,11 @@
 extern "C"
 {
 #endif
+	int _write(int FILE, char *writeBuffer, int writeBufferLength);
+	bool _available(void);
+	int _getchar(void);
+	int _peekchar(void);
+
 	void initSubshell(void);
 	void newCmd(const char *cmdName, const char *cmdHelp, void (*cmdFunction)(void *));
 	void run(void);
