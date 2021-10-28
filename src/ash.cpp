@@ -12,15 +12,36 @@
 #include "ash.h"
 
 D3io d3io;
-usb_serial_class *Ash::stream = nullptr;
 
-Ash::Ash(usb_serial_class &ioStream)
+int _write(int FILE, char *writeBuffer, int writeBufferLength)
 {
-	stream = &ioStream;
+	return usb_serial_write(writeBuffer, writeBufferLength);
+}
+
+bool _available(void)
+{
+	return usb_serial_available() ? true : false;
+}
+
+int _getchar(void)
+{
+	return usb_serial_getchar();
+}
+
+int _peekchar(void)
+{
+	return usb_serial_peekchar();
+}
+
+Ash::Ash(void)
+{
+	//
 }
 
 void Ash::init(void)
 {
+	initSubshell();
+
 	newCmd("shPrompt", "", this->hostname); // Set hostname / prompt
 	newCmd("unkCmd", "", this->unknownCommand);
 	newCmd("help", "Show help for the specified command", this->help);
@@ -47,7 +68,7 @@ void Ash::execLoop(void)
 void Ash::togglePower(void *)
 {
 	d3io.togglePower();
-	stream->printf("Done\r\n");
+	printf("Done\r\n");
 }
 
 void Ash::setAngle(void *)
@@ -56,13 +77,13 @@ void Ash::setAngle(void *)
 	if (getArg(&cmdArg))
 	{
 		uint16_t angle = (uint16_t)(atoi(cmdArg));
-		stream->printf("Setting angle: %d degrees\r\n", angle);
+		printf("Setting angle: %d degrees\r\n", angle);
 		convolvIR.convertIR(__builtin_round((float32_t)(angle) / 3.6));
-		stream->printf("Done\r\n");
+		printf("Done\r\n");
 	}
 	else
 	{
-		stream->printf("Error: incorrect syntax\r\n");
+		printf("Error: incorrect syntax\r\n");
 	}
 }
 
@@ -83,13 +104,13 @@ void Ash::lscmds(void *)
 
 void Ash::audioMemory(void *)
 {
-	stream->printf("Active memory usage: %u bytes\r\n", AudioStream::memory_used);
-	stream->printf("Maximum memory usage: %u bytes\r\n", AudioStream::memory_used_max);
+	printf("Active memory usage: %u bytes\r\n", AudioStream::memory_used);
+	printf("Maximum memory usage: %u bytes\r\n", AudioStream::memory_used_max);
 }
 
 void Ash::audioPassthrough(void *)
 {
-	stream->printf("Audio Passthough %s\r\n", convolvIR.togglePassthrough() ? "Enabled" : "Disabled");
+	printf("Audio Passthough %s\r\n", convolvIR.togglePassthrough() ? "Enabled" : "Disabled");
 }
 
 void Ash::help(void *)
@@ -101,41 +122,39 @@ void Ash::memoryUse(void *)
 {
 	extern unsigned long _heap_end;
 	extern char *__brkval;
-	stream->printf("Memory free: %8d\r\n", (char *)(&_heap_end) - __brkval);
+	printf("Memory free: %8d\r\n", (char *)(&_heap_end) - __brkval);
 }
 
 void Ash::reboot(void *)
 {
-	stream->flush();
-	stream->clear();
-	stream->printf("Auricle Rebooting\r\n");
+	printf("Auricle Rebooting\r\n");
 	*(volatile uint32_t *)0xE000ED0C = 0x05FA0004;
 }
 
 void Ash::unknownCommand(void *)
 {
 	Ash::hostname(nullptr);
-	stream->printf("Unknown command\r\n");
-	stream->flush();
+	printf("Unknown command\r\n");
+	fflush(stdout);
 }
 
 void Ash::clear(void *)
 {
 	const char clrSeq[] = {0x1B, 0x5B, 0x32, 0x4A, 0x00};
-	stream->printf("%s", clrSeq);
+	printf("%s", clrSeq);
 }
 
 void Ash::hostname(void *)
 {
-	stream->printf("ash %% ");
-	stream->flush();
+	printf("ash %% ");
+	fflush(stdout);
 }
 
 void Ash::motd(void)
 {
 	this->clear(nullptr);
-	stream->printf("Auricle Shell\r\n");
-	stream->printf("Version 0.1\r\n");
-	stream->printf("Copyright (c) 2021 Jason Conway\r\n\r\n");
+	printf("Auricle Shell\r\n");
+	printf("Version 0.1\r\n");
+	printf("Copyright (c) 2021 Jason Conway\r\n\r\n");
 	this->hostname(nullptr);
 }

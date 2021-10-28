@@ -19,13 +19,11 @@
 class Ash
 {
 public:
-	Ash(usb_serial_class &ioStream = SerialUSB);
+	Ash(void);
 	void execLoop(void);
 	void init(void);
 
 private:
-	static usb_serial_class *stream;
-	
 	void motd(void);
 
 	static void togglePower(void *);
