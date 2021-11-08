@@ -33,30 +33,29 @@ int _peekchar(void)
 
 Ash::Ash(void)
 {
-	//
+	d3initGPIO();
 }
 
 void Ash::init(void)
 {
 	initSubshell();
-	d3initGPIO();
+	
+	newCmd("shPrompt", "", hostname); // Set hostname / prompt
+	newCmd("unkCmd", "", unknownCommand);
+	newCmd("help", "Show help for the specified command", help);
 
-	newCmd("shPrompt", "", this->hostname); // Set hostname / prompt
-	newCmd("unkCmd", "", this->unknownCommand);
-	newCmd("help", "Show help for the specified command", this->help);
+	newCmd("togglepower", "Toggle power on the D3", togglePower);
+	newCmd("togglemode", "Toggle D3 input mode", switchInput);
+	newCmd("pttoggle", "Toggle audio passthrough", audioPassthrough);
+	newCmd("status", "Get status of the D3", currentStatus);
+	newCmd("sangle", "Set HRIR angle", setAngle);
+	newCmd("audiomemory", "View current and maximum audio memory", audioMemory);
+	newCmd("reboot", "Reboot Auricle", reboot);
+	newCmd("clear", "Clear screen", clear);
+	newCmd("memuse", "View amount of RAM free", memoryUse);
+	newCmd("lscmd", "List all commands", lscmds);
 
-	newCmd("togglepower", "Toggle power on the D3", this->togglePower);
-	newCmd("togglemode", "Toggle D3 input mode", this->switchInput);
-	newCmd("pttoggle", "Toggle audio passthrough", this->audioPassthrough);
-	newCmd("status", "Get status of the D3", this->currentStatus);
-	newCmd("sangle", "Set HRIR angle", this->setAngle);
-	newCmd("audiomemory", "View current and maximum audio memory", this->audioMemory);
-	newCmd("reboot", "Reboot Auricle", this->reboot);
-	newCmd("clear", "Clear screen", this->clear);
-	newCmd("memuse", "View amount of RAM free", this->memoryUse);
-	newCmd("lscmd", "List all commands", this->lscmds);
-
-	this->motd();
+	motd();
 }
 
 void Ash::execLoop(void)
@@ -151,9 +150,9 @@ void Ash::hostname(void *)
 
 void Ash::motd(void)
 {
-	this->clear(nullptr);
+	clear(nullptr);
 	printf("Auricle Shell\r\n");
 	printf("Version 0.1\r\n");
 	printf("Copyright (c) 2021 Jason Conway\r\n\r\n");
-	this->hostname(nullptr);
+	hostname(nullptr);
 }

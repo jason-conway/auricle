@@ -11,21 +11,21 @@
 
 #include "d3io.h"
 
-enum D3InputMode
+typedef enum d3Input_t
 {
 	ModeNull,
 	ModeUSB,
 	ModeOPT,
 	ModeRCA,
 	ModeBNC
-};
+} d3Input_t;
 
-enum D3Power
+typedef enum d3Power_t
 {
 	PowerNull,
 	PowerOff,
 	PowerOn
-};
+} d3Power_t;
 
 enum D3_PLL_Return_Codes
 {
@@ -33,19 +33,20 @@ enum D3_PLL_Return_Codes
 	Locked
 };
 
-typedef struct status_t
+typedef struct d3State_t
 {
-	uint8_t power;
-	uint8_t mode;
-} status_t;
+	d3Power_t power;
+	d3Input_t input;
+} d3State_t;
 
-status_t d3status;
+d3State_t d3state;
 
 /**
  * @brief Configure GPIO for interfacing with the D3
  *
  */
-void __attribute__((section(".flashmem"))) d3initGPIO(void)
+
+void d3initGPIO(void)
 {
 	volatile uint32_t *gpio_pow_reg = (volatile uint32_t *)(&GPIO_DR_SIG_OUT);
 	volatile uint32_t *gpio_sel_reg = (volatile uint32_t *)(&GPIO_DR_SIG_OUT);
@@ -92,40 +93,41 @@ void __attribute__((section(".flashmem"))) d3initGPIO(void)
 	*gpio_bnc_pad = IOMUXC_PAD_DSE(7);
 	*gpio_bnc_mux = GPIO_MUX_MODE_ALT5;
 
-	d3status.mode = ModeNull;
-	d3status.power = PowerNull;
+	d3state.input = ModeNull;
+	d3state.power = PowerNull;
 }
 
 /**
- * @brief Check all D3 inputs and set d3status.mode
+ * @brief Check all D3 inputs and set d3state.input
  *
  */
-void __attribute__((section(".flashmem"))) checkAll(void)
+_section_flash
+void checkAll(void)
 {
 	if (GPIO_PSR_SIG_IN & GPIO_MASK_SIG_USB)
 	{
-		d3status.mode = ModeUSB;
-		d3status.power = PowerOn;
+		d3state.input = ModeUSB;
+		d3state.power = PowerOn;
 	}
 	else if (GPIO_PSR_SIG_IN & GPIO_MASK_SIG_OPT)
 	{
-		d3status.mode = ModeOPT;
-		d3status.power = PowerOn;
+		d3state.input = ModeOPT;
+		d3state.power = PowerOn;
 	}
 	else if (GPIO_PSR_SIG_IN & GPIO_MASK_SIG_RCA)
 	{
-		d3status.mode = ModeRCA;
-		d3status.power = PowerOn;
+		d3state.input = ModeRCA;
+		d3state.power = PowerOn;
 	}
 	else if (GPIO_PSR_SIG_IN & GPIO_MASK_SIG_BNC)
 	{
-		d3status.mode = ModeBNC;
-		d3status.power = PowerOn;
+		d3state.input = ModeBNC;
+		d3state.power = PowerOn;
 	}
 	else
 	{
-		d3status.mode = ModeNull;
-		d3status.power = PowerNull;
+		d3state.input = ModeNull;
+		d3state.power = PowerNull;
 	}
 }
 
@@ -133,7 +135,8 @@ void __attribute__((section(".flashmem"))) checkAll(void)
  * @brief Write SIG_POW HIGH for 50ms to toggle power on the D3 board
  *
  */
-void __attribute__((section(".flashmem"))) d3togglePower(void)
+_section_flash
+void d3togglePower(void)
 {
 	GPIO6_DR_SET = GPIO_MASK_SIG_POW;
 	msleep(50);
@@ -141,27 +144,28 @@ void __attribute__((section(".flashmem"))) d3togglePower(void)
 
 	checkAll();
 
-	d3status.power = (d3status.mode) ? PowerOn : PowerOff;
+	d3state.power = (d3state.input) ? PowerOn : PowerOff;
 }
 
 /**
  * @brief Write SIG_SEL HIGH for 50ms switch inputs on the D3 board
  *
  */
-void __attribute__((section(".flashmem"))) d3switchInput(void)
+_section_flash
+void d3switchInput(void)
 {
 	checkAll();
-	uint8_t currentMode = d3status.mode;
-	uint8_t targetMode = (currentMode == ModeOPT) ? ModeUSB : ModeOPT;
+	uint8_t currentInput = d3state.input;
+	uint8_t targetInput = (currentInput == ModeOPT) ? ModeUSB : ModeOPT;
 
-	printf("Switching to mode: %s\r\n", (currentMode == ModeOPT) ? "USB" : "OPT");
+	printf("Switching to input: %s\r\n", (currentInput == ModeOPT) ? "USB" : "OPT");
 	do
 	{
 		GPIO6_DR_SET = GPIO_MASK_SIG_SEL;
-		msleep(50);
+		msleep(50); 
 		GPIO6_DR_CLEAR = GPIO_MASK_SIG_SEL;
 		checkAll();
-	} while (d3status.mode != targetMode);
+	} while (d3state.input != targetInput);
 
 	printf("Done\r\n");
 }
@@ -171,7 +175,8 @@ void __attribute__((section(".flashmem"))) d3switchInput(void)
  *
  * @return Returns D3_PLL_LOCKED if locked, otherwise D3_PLL_NOT_LOCKED
  */
-uint8_t __attribute__((section(".flashmem"))) pllStatus(void)
+_section_flash
+uint8_t pllStatus(void)
 {
 	for (size_t i = 0; i < 8; i++) // 2 seconds
 	{
@@ -189,11 +194,12 @@ uint8_t __attribute__((section(".flashmem"))) pllStatus(void)
  * @brief Report current status of the D3
  *
  */
-void __attribute__((section(".flashmem"))) d3currentStatus(void)
+_section_flash
+void d3currentStatus(void)
 {
 	checkAll();
 	printf("Current Input: ");
-	switch (d3status.mode)
+	switch (d3state.input)
 	{
 	case ModeUSB:
 		printf("USB\r\n");
@@ -207,5 +213,3 @@ void __attribute__((section(".flashmem"))) d3currentStatus(void)
 		break;
 	}
 }
-
-
