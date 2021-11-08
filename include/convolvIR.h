@@ -11,9 +11,10 @@
 
 #pragma once
 
-#include <Audio.h>
 #include <arm_math.h>
 #include <arm_const_structs.h>
+#include <wiring.h>
+#include <AudioStream.h>
 
 class ConvolvIR : public AudioStream
 {
