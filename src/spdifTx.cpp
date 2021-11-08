@@ -12,8 +12,8 @@
 #include "spdifTx.h"
 
 // S/PDIF transmit buffer
-static int32_t __attribute__((section(".dmabuffers"), used, aligned(32))) fifoTx[512];
-static audio_block_t __attribute__((section(".dmabuffers"), used, aligned(32))) silentAudio;
+_section_dma_aligned static int32_t fifoTx[512];
+_section_dma_aligned static audio_block_t silentAudio;
 
 audio_block_t *SpdifTx::leftAudioBuffer[];
 audio_block_t *SpdifTx::rightAudioBuffer[];
@@ -26,25 +26,25 @@ DMAChannel SpdifTx::eDMA(false);
  */
 SpdifTx::SpdifTx(void) : AudioStream(2, inputQueueArray)
 {
-	pinMode(33, OUTPUT);
-	this->init();
+	init();
 }
 
 /**
  * @brief
  *
  */
-void __attribute__((section(".flashmem"))) SpdifTx::init(void)
+_section_flash
+void SpdifTx::init(void) 
 {
-	dmaChannel = this->configureDMA();
-	this->configureSpdifRegisters();
+	dmaChannel = configureDMA();
+	configureSpdifRegisters();
 
 	eDMA.triggerAtHardwareEvent(DMAMUX_SOURCE_SPDIF_TX);
 
 	// Set Enable Request Register (pg 134)
 	DMA_SERQ = dmaChannel;
 
-	update_setup();
+	AudioStream::update_setup();
 
 	eDMA.attachInterrupt(dmaISR);
 
@@ -78,15 +78,13 @@ void SpdifTx::dmaISR(void)
 	audio_block_t *leftAudio = (leftAudioBuffer[0]) ?: &silentAudio;
 	audio_block_t *rightAudio = (rightAudioBuffer[0]) ?: &silentAudio;
 
-	digitalWriteFast(33, 1);
 	spdifInterleave(txBaseAddress, (const int16_t *)(leftAudio->data), (const int16_t *)(rightAudio->data));
 	arm_dcache_flush_delete(txBaseAddress, 1024);
-	digitalWriteFast(33, 0);
 
 	if (leftAudio != &silentAudio && rightAudio != &silentAudio)
 	{
-		release(leftAudio);
-		release(rightAudio);
+		AudioStream::release(leftAudio);
+		AudioStream::release(rightAudio);
 
 		leftAudioBuffer[0] = leftAudioBuffer[1];
 		leftAudioBuffer[1] = nullptr;
@@ -94,7 +92,7 @@ void SpdifTx::dmaISR(void)
 		rightAudioBuffer[1] = nullptr;
 	}
 
-	update_all();
+	AudioStream::update_all();
 }
 
 /**
@@ -103,12 +101,12 @@ void SpdifTx::dmaISR(void)
  */
 void SpdifTx::update(void)
 {
-	audio_block_t *leftAudio = receiveReadOnly(leftChannel);
-	audio_block_t *rightAudio = receiveReadOnly(rightChannel);
+	audio_block_t *leftAudio = AudioStream::receiveReadOnly(leftChannel);
+	audio_block_t *rightAudio = AudioStream::receiveReadOnly(rightChannel);
 
 	__disable_irq()
 
-		if (leftAudio && rightAudio)
+	if (leftAudio && rightAudio)
 	{
 		// Doing buffer packing in a loop is too slow, has to be done like this
 		// Left channel switcheroo
@@ -152,10 +150,10 @@ void SpdifTx::update(void)
 
 	__enable_irq()
 
-		if (leftAudio && rightAudio)
+	if (leftAudio && rightAudio)
 	{
-		release(leftAudio);
-		release(rightAudio);
+		AudioStream::release(leftAudio);
+		AudioStream::release(rightAudio);
 	}
 }
 
@@ -253,7 +251,8 @@ uint8_t SpdifTx::configureDMA(void)
 	return eDMA.channel;
 }
 
-void __attribute__((section(".flashmem"))) SpdifTx::configureSpdifRegisters(void)
+_section_flash
+void SpdifTx::configureSpdifRegisters(void)
 {
 	msleep(3);
 

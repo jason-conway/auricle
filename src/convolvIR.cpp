@@ -20,6 +20,8 @@
  */
 ConvolvIR::ConvolvIR(void) : AudioStream(2, inputQueueArray)
 {
+	_section_dma static audio_block_t allocatedAudioMemory[16]; 
+	AudioStream::initialize_memory(allocatedAudioMemory, 16);
 	init();
 }
 
@@ -125,7 +127,6 @@ void ConvolvIR::clearAllArrays(void)
  */
 void ConvolvIR::update(void)
 {
-	
 	audio_block_t *leftAudio = receiveWritable(LEFT);
 	audio_block_t *rightAudio = receiveWritable(RIGHT);
 
@@ -133,17 +134,15 @@ void ConvolvIR::update(void)
 	{
 		if (audioPassthrough) // Not messing with the data, just sending it through the pipe
 		{
-			transmit(leftAudio, LEFT);
-			transmit(rightAudio, RIGHT);
-			release(leftAudio);
-			release(rightAudio);
-			// printf("%lu\r\n", ARM_DWT_CYCCNT - start);
+			AudioStream::transmit(leftAudio, LEFT);
+			AudioStream::transmit(rightAudio, RIGHT);
+			AudioStream::release(leftAudio);
+			AudioStream::release(rightAudio);
 			return;
 		}
 
 		// Disable interrupts while computing the convolution
 		__disable_irq();
-		uint32_t start = ARM_DWT_CYCCNT;
 		// Use float32 for higher precision intermediate calculations
 		arm_q15_to_float(leftAudio->data, leftAudioData, 128);
 		arm_q15_to_float(rightAudio->data, rightAudioData, 128);
@@ -175,14 +174,13 @@ void ConvolvIR::update(void)
 		arm_float_to_q15(rightAudioData, rightAudio->data, 128);
 
 		// Transmit left and right audio to the output
-		transmit(leftAudio, LEFT);
-		transmit(rightAudio, RIGHT);
+		AudioStream::transmit(leftAudio, LEFT);
+		AudioStream::transmit(rightAudio, RIGHT);
 
 		// Re-enable interrupts
 		__enable_irq();
 
-		release(leftAudio);
-		release(rightAudio);
-		printf("%lu\r\n", ARM_DWT_CYCCNT - start);
+		AudioStream::release(leftAudio);
+		AudioStream::release(rightAudio);
 	}
 }
