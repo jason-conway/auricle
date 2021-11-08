@@ -21,7 +21,7 @@
 ConvolvIR::ConvolvIR(void) : AudioStream(2, inputQueueArray)
 {
 	_section_dma static audio_block_t allocatedAudioMemory[16]; 
-	AudioStream::initialize_memory(allocatedAudioMemory, 16);
+	initialize_memory(allocatedAudioMemory, 16);
 	init();
 }
 
@@ -134,10 +134,10 @@ void ConvolvIR::update(void)
 	{
 		if (audioPassthrough) // Not messing with the data, just sending it through the pipe
 		{
-			AudioStream::transmit(leftAudio, LEFT);
-			AudioStream::transmit(rightAudio, RIGHT);
-			AudioStream::release(leftAudio);
-			AudioStream::release(rightAudio);
+			transmit(leftAudio, LEFT);
+			transmit(rightAudio, RIGHT);
+			release(leftAudio);
+			release(rightAudio);
 			return;
 		}
 
@@ -174,13 +174,13 @@ void ConvolvIR::update(void)
 		arm_float_to_q15(rightAudioData, rightAudio->data, 128);
 
 		// Transmit left and right audio to the output
-		AudioStream::transmit(leftAudio, LEFT);
-		AudioStream::transmit(rightAudio, RIGHT);
+		transmit(leftAudio, LEFT);
+		transmit(rightAudio, RIGHT);
 
 		// Re-enable interrupts
 		__enable_irq();
 
-		AudioStream::release(leftAudio);
-		AudioStream::release(rightAudio);
+		release(leftAudio);
+		release(rightAudio);
 	}
 }

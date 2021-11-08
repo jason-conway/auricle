@@ -44,7 +44,7 @@ void SpdifTx::init(void)
 	// Set Enable Request Register (pg 134)
 	DMA_SERQ = dmaChannel;
 
-	AudioStream::update_setup();
+	update_setup();
 
 	eDMA.attachInterrupt(dmaISR);
 
@@ -83,8 +83,8 @@ void SpdifTx::dmaISR(void)
 
 	if (leftAudio != &silentAudio && rightAudio != &silentAudio)
 	{
-		AudioStream::release(leftAudio);
-		AudioStream::release(rightAudio);
+		release(leftAudio);
+		release(rightAudio);
 
 		leftAudioBuffer[0] = leftAudioBuffer[1];
 		leftAudioBuffer[1] = nullptr;
@@ -92,7 +92,7 @@ void SpdifTx::dmaISR(void)
 		rightAudioBuffer[1] = nullptr;
 	}
 
-	AudioStream::update_all();
+	update_all();
 }
 
 /**
@@ -101,8 +101,8 @@ void SpdifTx::dmaISR(void)
  */
 void SpdifTx::update(void)
 {
-	audio_block_t *leftAudio = AudioStream::receiveReadOnly(leftChannel);
-	audio_block_t *rightAudio = AudioStream::receiveReadOnly(rightChannel);
+	audio_block_t *leftAudio = receiveReadOnly(leftChannel);
+	audio_block_t *rightAudio = receiveReadOnly(rightChannel);
 
 	__disable_irq()
 
@@ -152,8 +152,8 @@ void SpdifTx::update(void)
 
 	if (leftAudio && rightAudio)
 	{
-		AudioStream::release(leftAudio);
-		AudioStream::release(rightAudio);
+		release(leftAudio);
+		release(rightAudio);
 	}
 }
 
