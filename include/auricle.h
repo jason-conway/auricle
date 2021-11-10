@@ -21,7 +21,7 @@
 
 
 #define _section_flash __attribute__((section(".flashmem")))
-#define _section_dma __attribute__((used, section(".flashmem")))
+#define _section_dma __attribute__((used, section(".dmabuffers")))
 #define _section_dma_aligned __attribute__((used, section(".dmabuffers"), aligned(32)))
 
 enum Stereo
