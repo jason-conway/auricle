@@ -20,18 +20,17 @@
  */
 ConvolvIR::ConvolvIR(void) : AudioStream(2, inputQueueArray)
 {
-	_section_dma static audio_block_t allocatedAudioMemory[16]; 
+	_section_dma static audio_block_t allocatedAudioMemory[16];
 	initialize_memory(allocatedAudioMemory, 16);
 	init();
 }
 
 /**
- * @brief Clear out buffers
+ * @brief 
  * 
  */
 void ConvolvIR::init(void)
 {
-	clearAllArrays();
 	partitionIndex = 0;
 	audioPassthrough = true;
 }
@@ -46,10 +45,9 @@ void ConvolvIR::init(void)
  */
 void ConvolvIR::convertIR(uint8_t irIndex)
 {
-	audioPassthrough = true;
-	clearAllArrays();
-	partitionIndex = 0;
-	
+	audioMute = true;
+	memset(&hrtf, 0, sizeof(hrtf));
+
 	for (size_t i = 0; i < 2; i++)
 	{
 		float32_t impulsePartitionBuffer[512];
@@ -58,7 +56,7 @@ void ConvolvIR::convertIR(uint8_t irIndex)
 			arm_fill_f32(0.0f, impulsePartitionBuffer, 512);
 
 			for (size_t k = 0; k < PartitionSize; k++)
-			{				
+			{
 				// impulsePartitionBuffer[2 * k + 256] = irTable[2 * ImpulseSamples * irIndex + ImpulseSamples * i + 128 * j + k];
 				impulsePartitionBuffer[2 * k + 256] = irTable[ImpulseSamples * i + 128 * j + k];
 			}
@@ -67,34 +65,38 @@ void ConvolvIR::convertIR(uint8_t irIndex)
 			arm_copy_f32(impulsePartitionBuffer, i ? &hrtf.retf[512 * j] : &hrtf.letf[512 * j], 512);
 		}
 	}
-	audioPassthrough = false;
+	
+	audioMute = false;
+	partitionIndex = 0;
 }
 
 /**
  * @brief 
  * 
  */
-// __attribute__ ((optimize("-O3")))
 void ConvolvIR::convolve(channel_t channel, float32_t *hrtf, float32_t *channelOutput)
 {
-	arm_fill_f32(0.0f, multAccum, 512); // Clear out previous data in accumulator
-	
+	static float32_t cmplxAccum[512];
+	static float32_t cmplxProduct[512];
+
+	arm_fill_f32(0.0f, cmplxAccum, 512); // Reset
+
 	int16_t shiftIndex = partitionIndex; // Set new starting point for sliding convolutionPartitions over the FFT of the impulse response
-		
+
 	for (size_t i = 0; i < PartitionCount; i++)
 	{
 		arm_cmplx_mult_cmplx_f32(&frequencyDelayLine[512 * shiftIndex], &hrtf[512 * i], cmplxProduct, 256);
-		arm_add_f32(multAccum, cmplxProduct, multAccum, 512);
+		arm_add_f32(cmplxAccum, cmplxProduct, cmplxAccum, 512);
 
-		// Decrease counter by 1 until we've reached zero, then restart
+		// Decrement with wraparound
 		shiftIndex = (shiftIndex + (PartitionCount - 1)) % PartitionCount;
 	}
 
-	arm_cfft_f32(&arm_cfft_sR_f32_len256, multAccum, InverseFFT, 1);
+	arm_cfft_f32(&arm_cfft_sR_f32_len256, cmplxAccum, InverseFFT, 1);
 
 	for (size_t i = 0; i < PartitionSize; i++)
 	{
-		channelOutput[i] = multAccum[2 * i + channel];
+		channelOutput[i] = cmplxAccum[2 * i + channel];
 	}
 }
 
@@ -104,29 +106,17 @@ bool ConvolvIR::togglePassthrough(void)
 	return audioPassthrough;
 }
 
-void ConvolvIR::clearAllArrays(void)
-{
-	memset(frequencyDelayLine, 0, sizeof(frequencyDelayLine));
-
-	memset(hrtf.letf, 0, sizeof(hrtf.letf));
-	memset(hrtf.retf, 0, sizeof(hrtf.retf));
-	
-	memset(cmplxProduct, 0, sizeof(cmplxProduct));
-
-	memset(overlappedAudio, 0, sizeof(overlappedAudio));
-
-	memset(leftAudioData, 0, sizeof(leftAudioData));
-	memset(rightAudioData, 0, sizeof(rightAudioData));
-	memset(previousAudioData, 0, sizeof(previousAudioData));
-	memset(inputQueueArray, 0, sizeof(inputQueueArray));
-}
-
 /**
  * @brief Updates every 128 samples / 2.9 ms
  * 
  */
 void ConvolvIR::update(void)
 {
+	if (audioMute)
+	{
+		return;
+	}
+
 	audio_block_t *leftAudio = receiveWritable(LEFT);
 	audio_block_t *rightAudio = receiveWritable(RIGHT);
 
@@ -140,47 +130,55 @@ void ConvolvIR::update(void)
 			release(rightAudio);
 			return;
 		}
-
-		// Disable interrupts while computing the convolution
-		__disable_irq();
-		// Use float32 for higher precision intermediate calculations
-		arm_q15_to_float(leftAudio->data, leftAudioData, 128);
-		arm_q15_to_float(rightAudio->data, rightAudioData, 128);
-
-		for (size_t i = 0; i < PartitionSize; i++)
+		else
 		{
-			// Fill the first half of audioConvolutionBuffer with audio data from the previous sample
-			overlappedAudio[2 * i] = previousAudioData[2 * i];		 // [0] [2] [4] ... [254]
-			overlappedAudio[2 * i + 1] = previousAudioData[2 * i + 1]; // [1] [3] [5] ... [255]
+			__disable_irq();
 
-			// Fill the last half of audioConvolutionBuffer with the current audio data
-			overlappedAudio[2 * i + 256] = leftAudioData[i];	 // [256] [258] [260] ... [510]
-			overlappedAudio[2 * i + 257] = rightAudioData[i]; // [257] [259] [261] ... [511]
-	
-			previousAudioData[2 * i] = leftAudioData[i];
-			previousAudioData[2 * i + 1] = rightAudioData[i];
+			static float32_t overlappedAudioData[512];
+			static float32_t leftAudioData[128];
+			static float32_t rightAudioData[128];
+
+			// Use float32 for higher precision intermediate calculations
+			arm_q15_to_float(leftAudio->data, leftAudioData, 128);
+			arm_q15_to_float(rightAudio->data, rightAudioData, 128);
+
+			for (size_t i = 0; i < PartitionSize; i++)
+			{
+				static float32_t overlapSave[256];
+
+				// Fill the first half with the previous sample
+				overlappedAudioData[2 * i] = overlapSave[2 * i];		   // [0] [2] [4] ... [254]
+				overlappedAudioData[2 * i + 1] = overlapSave[2 * i + 1]; // [1] [3] [5] ... [255]
+
+				// Fill the last half with the current sample
+				overlappedAudioData[2 * i + 256] = leftAudioData[i];  // [256] [258] [260] ... [510]
+				overlappedAudioData[2 * i + 257] = rightAudioData[i]; // [257] [259] [261] ... [511]
+
+				overlapSave[2 * i] = leftAudioData[i];
+				overlapSave[2 * i + 1] = rightAudioData[i];
+			}
+
+			arm_cfft_f32(&arm_cfft_sR_f32_len256, overlappedAudioData, ForwardFFT, 1);
+			arm_copy_f32(overlappedAudioData, &frequencyDelayLine[partitionIndex * 512], 512);
+
+			convolve(LEFT, hrtf.letf, leftAudioData);
+			convolve(RIGHT, hrtf.retf, rightAudioData);
+
+			// Increase counter by 1 until we've reached the number of partitions, then reset counter to 0
+			partitionIndex = (partitionIndex + 1) % PartitionCount;
+
+			arm_float_to_q15(leftAudioData, leftAudio->data, 128);
+			arm_float_to_q15(rightAudioData, rightAudio->data, 128);
+
+			// Transmit left and right audio to the output
+			transmit(leftAudio, LEFT);
+			transmit(rightAudio, RIGHT);
+
+			// Re-enable interrupts
+			__enable_irq();
+
+			release(leftAudio);
+			release(rightAudio);
 		}
-
-		arm_cfft_f32(&arm_cfft_sR_f32_len256, overlappedAudio, ForwardFFT, 1);
-		arm_copy_f32(overlappedAudio, &frequencyDelayLine[partitionIndex * 512], 512);
-
-		convolve(LEFT, hrtf.letf, leftAudioData);
-		convolve(RIGHT, hrtf.retf, rightAudioData);
-
-		// Increase counter by 1 until we've reached the number of partitions, then reset counter to 0
-		partitionIndex = (partitionIndex + 1) % PartitionCount;
-
-		arm_float_to_q15(leftAudioData, leftAudio->data, 128);
-		arm_float_to_q15(rightAudioData, rightAudio->data, 128);
-
-		// Transmit left and right audio to the output
-		transmit(leftAudio, LEFT);
-		transmit(rightAudio, RIGHT);
-
-		// Re-enable interrupts
-		__enable_irq();
-
-		release(leftAudio);
-		release(rightAudio);
 	}
 }

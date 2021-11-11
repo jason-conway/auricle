@@ -60,17 +60,13 @@ private:
 	void convolve(channel_t channel, float32_t *hrtf, float32_t *channelOutput);
 
 	bool audioPassthrough;
+	bool audioMute; 
+	
 	uint16_t partitionIndex;
 
 	audio_block_t *inputQueueArray[2];
 
 	float32_t frequencyDelayLine[512 * PartitionCount];
-	float32_t overlappedAudio[512];
-	float32_t multAccum[512];
-	float32_t cmplxProduct[512];
-	float32_t previousAudioData[256];
-	float32_t leftAudioData[128];
-	float32_t rightAudioData[128];
 };
 
 extern ConvolvIR convolvIR;
