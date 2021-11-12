@@ -31,8 +31,7 @@ private:
 	hrtf_t hrtf;
 
 	bool audioPassthrough;
-	bool audioMute; 
-
+	bool audioMute;
 };
 
 extern ConvolvIR convolvIR;
