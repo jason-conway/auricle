@@ -15,6 +15,7 @@
 #include <arm_const_structs.h>
 #include <wiring.h>
 #include <AudioStream.h>
+#include "upols.h"
 
 class ConvolvIR : public AudioStream
 {
@@ -26,47 +27,12 @@ public:
 	void convertIR(uint8_t irIndex);
 
 private:
-	enum Lengths
-	{
-		PartitionSize = 128,
-		PartitionCount = 64,
-		TransformSize = 2 * PartitionSize,
-		ComplexValues = 2 * TransformSize,
-		ImpulseSamples = PartitionSize * PartitionCount,
-	};
-
-	enum FFT_Flags
-	{
-		ForwardFFT,
-		InverseFFT
-	};
-
-	typedef enum channel_t
-	{
-		LEFT,
-		RIGHT
-	} channel_t;
-
-	typedef struct hrtf_t
-	{
-		float32_t letf[512 * PartitionCount];
-		float32_t retf[512 * PartitionCount];
-	} hrtf_t;
-
+	audio_block_t *inputQueueArray[2];
 	hrtf_t hrtf;
-
-	void init(void);
-	void clearAllArrays(void);
-	void convolve(channel_t channel, float32_t *hrtf, float32_t *channelOutput);
 
 	bool audioPassthrough;
 	bool audioMute; 
-	
-	uint16_t partitionIndex;
 
-	audio_block_t *inputQueueArray[2];
-
-	float32_t frequencyDelayLine[512 * PartitionCount];
 };
 
 extern ConvolvIR convolvIR;
