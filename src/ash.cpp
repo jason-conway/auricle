@@ -76,7 +76,7 @@ void Ash::setAngle(void *)
 	{
 		uint16_t angle = (uint16_t)(atoi(cmdArg));
 		printf("Setting angle: %d degrees\r\n", angle);
-		convolvIR.convertIR(__builtin_round((float32_t)(angle) / 3.6));
+		convolvIR.convertIR((uint16_t)__builtin_round((float32_t)(angle) / 3.6));
 		printf("Done\r\n");
 	}
 	else
@@ -154,5 +154,6 @@ void Ash::motd(void)
 	printf("Auricle Shell\r\n");
 	printf("Version 0.1\r\n");
 	printf("Copyright (c) 2021 Jason Conway\r\n\r\n");
+	Serial.print(CrashReport);
 	hostname(nullptr);
 }

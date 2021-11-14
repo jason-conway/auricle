@@ -10,7 +10,7 @@
  */
 
 #include "convolvIR.h"
-#include "tablIR.h"
+// #include "tablIR.h"
 
 // #pragma GCC optimize ("O1")
 
@@ -25,36 +25,11 @@ ConvolvIR::ConvolvIR(void) : AudioStream(2, inputQueueArray)
 	audioPassthrough = true;
 }
 
-/**
- * @brief Partition the original impulse response into sub-filters in order to perform convolution in real time.
- * The linearity of the FFT allows previously computed FFTs to be reused in the suceeding filters- decreasing the 
- * number of forward FFTs that need to be computed. Since multiple convolutions are summed together, the overall 
- * number of inverse FFTs is also cut down.
- * 
- * @param irIndex 
- */
-void ConvolvIR::convertIR(uint8_t irIndex)
+
+void ConvolvIR::convertIR(uint16_t irIndex)
 {
 	audioMute = true;
-	memset(&hrtf, 0, sizeof(hrtf));
-
-	for (size_t i = 0; i < 2; i++)
-	{
-		float32_t impulsePartitionBuffer[512];
-		for (size_t j = 0; j < PartitionCount; j++)
-		{
-			arm_fill_f32(0.0f, impulsePartitionBuffer, 512);
-
-			for (size_t k = 0; k < PartitionSize; k++)
-			{
-				// impulsePartitionBuffer[2 * k + 256] = irTable[2 * ImpulseSamples * irIndex + ImpulseSamples * i + 128 * j + k];
-				impulsePartitionBuffer[2 * k + 256] = irTable[ImpulseSamples * i + 128 * j + k];
-			}
-
-			arm_cfft_f32(&arm_cfft_sR_f32_len256, impulsePartitionBuffer, ForwardFFT, 1);
-			arm_copy_f32(impulsePartitionBuffer, i ? &hrtf.retf[512 * j] : &hrtf.letf[512 * j], 512);
-		}
-	}
+	convertImpulseResponse(irIndex);
 	audioMute = false;
 }
 
@@ -90,16 +65,18 @@ void ConvolvIR::update(void)
 		}
 		else
 		{
+			__disable_irq();
+
 			float32_t leftAudioData[128];
 			float32_t rightAudioData[128];
 
 			arm_q15_to_float(leftAudio->data, leftAudioData, 128);
 			arm_q15_to_float(rightAudio->data, rightAudioData, 128);
 
-			upols(leftAudioData, rightAudioData, &hrtf);
+			convolve(leftAudioData, rightAudioData);
 
 			arm_float_to_q15(leftAudioData, leftAudio->data, 128);
-    		arm_float_to_q15(rightAudioData, rightAudio->data, 128);
+			arm_float_to_q15(rightAudioData, rightAudio->data, 128);
 
 			// Transmit left and right audio to the output
 			transmit(leftAudio, LeftChannel);
@@ -107,6 +84,9 @@ void ConvolvIR::update(void)
 
 			release(leftAudio);
 			release(rightAudio);
+
+			// Re-enable interrupts
+			__enable_irq();
 		}
 	}
 }

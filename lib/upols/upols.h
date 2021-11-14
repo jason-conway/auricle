@@ -22,10 +22,8 @@
 
 enum Lengths
 {
-	PartitionSize = 128,
-	PartitionCount = 64,
-	TransformSize = 2 * PartitionSize,
-	ComplexValues = 2 * TransformSize,
+	PartitionSize = 128, // Number of audio samples per partition
+	PartitionCount = 64, // Number of partitions making up the filter
 	ImpulseSamples = PartitionSize * PartitionCount,
 };
 
@@ -41,17 +39,12 @@ enum ChannelID
 	RightChannel
 };
 
-typedef struct hrtf_t
-{
-	float32_t letf[512 * PartitionCount];
-	float32_t retf[512 * PartitionCount];
-} hrtf_t;
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-	void upols(float32_t *leftAudio, float32_t *rightAudio, hrtf_t *hrtf);
+	void convertImpulseResponse(uint16_t irIndex);
+	void convolve(float32_t *leftAudioData, float32_t *rightAudioData);
 #ifdef __cplusplus
 }
 #endif

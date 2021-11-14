@@ -15,6 +15,7 @@
 #include <arm_const_structs.h>
 #include <wiring.h>
 #include <AudioStream.h>
+#include "auricle.h"
 #include "upols.h"
 
 class ConvolvIR : public AudioStream
@@ -22,13 +23,13 @@ class ConvolvIR : public AudioStream
 public:
 	ConvolvIR(void);
 	virtual void update(void);
-
 	bool togglePassthrough(void);
-	void convertIR(uint8_t irIndex);
+	void convertIR(uint16_t irIndex);
 
 private:
 	audio_block_t *inputQueueArray[2];
-	hrtf_t hrtf;
+	
+	// upols_t *convolve;
 
 	bool audioPassthrough;
 	bool audioMute;
