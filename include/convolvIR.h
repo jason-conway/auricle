@@ -28,8 +28,6 @@ public:
 
 private:
 	audio_block_t *inputQueueArray[2];
-	
-	// upols_t *convolve;
 
 	bool audioPassthrough;
 	bool audioMute;

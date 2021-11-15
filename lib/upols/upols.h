@@ -43,8 +43,8 @@ enum ChannelID
 extern "C"
 {
 #endif
-	void convertImpulseResponse(uint16_t irIndex);
-	void convolve(float32_t *leftAudioData, float32_t *rightAudioData);
+	void convertImpulseResponse(const uint16_t irIndex);
+	void convolve(int16_t *leftAudio, int16_t *rightAudio);
 #ifdef __cplusplus
 }
 #endif

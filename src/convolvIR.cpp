@@ -10,7 +10,6 @@
  */
 
 #include "convolvIR.h"
-// #include "tablIR.h"
 
 // #pragma GCC optimize ("O1")
 
@@ -23,14 +22,19 @@ ConvolvIR::ConvolvIR(void) : AudioStream(2, inputQueueArray)
 	_section_dma static audio_block_t allocatedAudioMemory[16];
 	initialize_memory(allocatedAudioMemory, 16);
 	audioPassthrough = true;
+	pinMode(33, 1);
 }
 
 
 void ConvolvIR::convertIR(uint16_t irIndex)
 {
 	audioMute = true;
+	digitalWriteFast(33, 1);
 	convertImpulseResponse(irIndex);
+	digitalWriteFast(33, 0);
 	audioMute = false;
+	audioPassthrough = false;
+
 }
 
 bool ConvolvIR::togglePassthrough(void)
@@ -67,16 +71,9 @@ void ConvolvIR::update(void)
 		{
 			__disable_irq();
 
-			float32_t leftAudioData[128];
-			float32_t rightAudioData[128];
-
-			arm_q15_to_float(leftAudio->data, leftAudioData, 128);
-			arm_q15_to_float(rightAudio->data, rightAudioData, 128);
-
-			convolve(leftAudioData, rightAudioData);
-
-			arm_float_to_q15(leftAudioData, leftAudio->data, 128);
-			arm_float_to_q15(rightAudioData, rightAudio->data, 128);
+			digitalWriteFast(33,1);
+			convolve(leftAudio->data, rightAudio->data);
+			digitalWriteFast(33,0);
 
 			// Transmit left and right audio to the output
 			transmit(leftAudio, LeftChannel);
@@ -87,6 +84,7 @@ void ConvolvIR::update(void)
 
 			// Re-enable interrupts
 			__enable_irq();
+			
 		}
 	}
 }

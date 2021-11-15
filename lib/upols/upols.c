@@ -28,12 +28,11 @@ typedef struct hrtf_t
 
 typedef struct upols_t
 {
-	int16_t currentIndex;								 // Current partition index
-	float32_t slidingWindow[512];				 // Time-domain sliding window
+	int16_t currentIndex;					   // Current partition index
+	float32_t slidingWindow[512];			   // Time-domain sliding window
 	float32_t delayLine[512 * PartitionCount]; // Frequency-domain delay line
 } upols_t;
 
-upols_t upols;
 hrtf_t hrtf;
 
 /**
@@ -43,10 +42,9 @@ hrtf_t hrtf;
  * number of forward FFTs that need to be computed. Since multiple convolutions are summed together, the overall 
  * number of inverse FFTs is also cut down.
  * 
- * @param upols 
  * @param irIndex 
  */
-void convertImpulseResponse(uint16_t irIndex)
+void convertImpulseResponse(const uint16_t irIndex)
 {
 	// Start by clearing any contents that may be in memory
 	memset(&hrtf, 0, sizeof(hrtf));
@@ -83,22 +81,22 @@ void convertImpulseResponse(uint16_t irIndex)
  * @param channelOutput Pointer to the time-domain output buffer
  * @param channelID ID of the channel being operated on [left -> 0] [right -> 1]
  */
-void _convolve(float32_t *channelOutput, const uint8_t channelID)
+void _convolve(upols_t *upols, float32_t *channelOutput, const uint8_t channelID)
 {
 	// Frequency-domain accumulation buffer
 	static float32_t cmplxAccum[512];
-	static float32_t cmplxProduct[512];
+	float32_t cmplxProduct[512];
 
 	arm_fill_f32(0.0f, cmplxAccum, 512); // Zero buffer between calls
 
-	int16_t shiftIndex = upols.currentIndex; // Set new starting point for sliding convolutionPartitions over the FFT of the impulse response
+	int16_t shiftIndex = upols->currentIndex; // Set new starting point for sliding convolutionPartitions over the FFT of the impulse response
 
 	float32_t *channelTF = channelID ? hrtf.retf : hrtf.retf;
 
 	for (size_t i = 0; i < PartitionCount; i++)
 	{
 		// Point-wise multiplication of the DFT spectra
-		arm_cmplx_mult_cmplx_f32(&upols.delayLine[512 * shiftIndex], &channelTF[512 * i], cmplxProduct, 256);
+		arm_cmplx_mult_cmplx_f32(&upols->delayLine[512 * shiftIndex], &channelTF[512 * i], cmplxProduct, 256);
 		arm_add_f32(cmplxAccum, cmplxProduct, cmplxAccum, 512);
 
 		// Decrement with wraparound
@@ -120,7 +118,7 @@ void _convolve(float32_t *channelOutput, const uint8_t channelID)
  * @param leftAudioData 
  * @param rightAudioData 
  */
-void overlapSamples(float32_t *leftAudioData, float32_t *rightAudioData)
+inline static void overlapSamples(upols_t *upols, const float32_t *leftAudioData, const float32_t *rightAudioData)
 {
 	for (size_t i = 0; i < PartitionSize; i++)
 	{
@@ -128,12 +126,12 @@ void overlapSamples(float32_t *leftAudioData, float32_t *rightAudioData)
 		static float32_t previousAudioData[256];
 
 		// Fill the first half with the previous sample
-		upols.slidingWindow[2 * i] = previousAudioData[2 * i];		   // [0] [2] [4] ... [254]
-		upols.slidingWindow[2 * i + 1] = previousAudioData[2 * i + 1]; // [1] [3] [5] ... [255]
+		upols->slidingWindow[2 * i] = previousAudioData[2 * i];			// [0] [2] [4] ... [254]
+		upols->slidingWindow[2 * i + 1] = previousAudioData[2 * i + 1]; // [1] [3] [5] ... [255]
 
 		// Fill the last half with the current sample
-		upols.slidingWindow[2 * i + 256] = leftAudioData[i];  // [256] [258] [260] ... [510]
-		upols.slidingWindow[2 * i + 257] = rightAudioData[i]; // [257] [259] [261] ... [511]
+		upols->slidingWindow[2 * i + 256] = leftAudioData[i];  // [256] [258] [260] ... [510]
+		upols->slidingWindow[2 * i + 257] = rightAudioData[i]; // [257] [259] [261] ... [511]
 
 		// Save a copy of current sample for the next audio block
 		previousAudioData[2 * i] = leftAudioData[i];
@@ -147,17 +145,28 @@ void overlapSamples(float32_t *leftAudioData, float32_t *rightAudioData)
  * @param leftAudioData 
  * @param rightAudioData 
  */
-void convolve(float32_t *leftAudioData, float32_t *rightAudioData)
+void convolve(int16_t *leftAudio, int16_t *rightAudio)
 {
-	overlapSamples(leftAudioData, rightAudioData);
+	static upols_t upols;
+
+	float32_t leftAudioData[128];
+	float32_t rightAudioData[128];
+
+	arm_q15_to_float(leftAudio, leftAudioData, 128);
+	arm_q15_to_float(rightAudio, rightAudioData, 128);
+
+	overlapSamples(&upols, leftAudioData, rightAudioData);
 
 	// Take FFT of time-domain input buffer and copy to the FDL
 	arm_cfft_f32(&arm_cfft_sR_f32_len256, upols.slidingWindow, ForwardFFT, 1);
 	arm_copy_f32(upols.slidingWindow, &upols.delayLine[upols.currentIndex * 512], 512);
 
-	_convolve(leftAudioData, LeftChannel);
-	_convolve(rightAudioData, RightChannel);
+	_convolve(&upols, leftAudioData, LeftChannel);
+	_convolve(&upols, rightAudioData, RightChannel);
 
 	// Increment with wraparound
 	upols.currentIndex = (upols.currentIndex + 1) % PartitionCount;
+
+	arm_float_to_q15(leftAudioData, leftAudio, 128);
+	arm_float_to_q15(rightAudioData, rightAudio, 128);
 }
