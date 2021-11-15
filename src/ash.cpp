@@ -39,13 +39,15 @@ Ash::Ash(void)
 void Ash::init(void)
 {
 	initSubshell();
-	
+
 	newCmd("shPrompt", "", hostname); // Set hostname / prompt
 	newCmd("unkCmd", "", unknownCommand);
 	newCmd("help", "Show help for the specified command", help);
 
-	newCmd("togglepower", "Toggle power on the D3", togglePower);
-	newCmd("togglemode", "Toggle D3 input mode", switchInput);
+	// newCmd("togglepower", "Toggle power on the D3", togglePower);
+	// newCmd("toggle", "Toggle D3 input mode", switchInput);
+	newCmd("toggle", "Toggle the state of the entered setting", toggle);
+
 	newCmd("pttoggle", "Toggle audio passthrough", audioPassthrough);
 	newCmd("status", "Get status of the D3", currentStatus);
 	newCmd("sangle", "Set HRIR angle", setAngle);
@@ -63,10 +65,38 @@ void Ash::execLoop(void)
 	run();
 }
 
-void Ash::togglePower(void *)
+void Ash::toggle(void *)
 {
-	d3togglePower();
-	printf("Done\r\n");
+	char *options[3] = {(char *)"power", (char *)"input", (char *)"passthrough"};
+
+	char *cmdArg = NULL;
+	if (getArg(&cmdArg))
+	{
+		bool invalidCmd = true;
+		for (size_t i = 0; i < 3; i++)
+		{
+			if (strncmp(cmdArg, options[i], 16) == 0)
+			{
+				switch (i)
+				{
+				case 0:
+					d3togglePower();
+					break;
+				case 1:
+					d3switchInput();
+					break;
+				case 2:
+					printf("Audio Passthough %s\r\n", convolvIR.togglePassthrough() ? "Enabled" : "Disabled");
+				}
+				invalidCmd = false;
+				break;
+			}
+		}
+		if (invalidCmd)
+		{
+			printf("Unknown option: %s\r\n", cmdArg);
+		}
+	}
 }
 
 void Ash::setAngle(void *)
@@ -83,11 +113,6 @@ void Ash::setAngle(void *)
 	{
 		printf("Error: incorrect syntax\r\n");
 	}
-}
-
-void Ash::switchInput(void *)
-{
-	d3switchInput();
 }
 
 void Ash::currentStatus(void *)

@@ -26,9 +26,8 @@ public:
 private:
 	void motd(void);
 
-	static void togglePower(void *);
+	static void toggle(void *);
 	static void setAngle(void *);
-	static void switchInput(void *);
 	static void currentStatus(void *);
 	static void audioPassthrough(void *);
 	static void audioMemory(void *);
