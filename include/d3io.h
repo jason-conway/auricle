@@ -39,12 +39,15 @@
 #define GPIO_PAD_SIG_BNC IOMUXC_SW_PAD_CTL_PAD_GPIO_EMC_08	 // pg 573
 
 // Bitmasks
-#define GPIO_MASK_SIG_POW (1 << 3) // 8
-#define GPIO_MASK_SIG_SEL (1 << 2) // 4
-#define GPIO_MASK_SIG_USB (1 << 4) // 16
-#define GPIO_MASK_SIG_OPT (1 << 5) // 32
-#define GPIO_MASK_SIG_RCA (1 << 6) // 64
-#define GPIO_MASK_SIG_BNC (1 << 8) // 256
+enum Masks
+{
+	GPIO_MASK_SIG_POW = (1 << 3), // 8
+	GPIO_MASK_SIG_SEL = (1 << 2), // 4
+	GPIO_MASK_SIG_USB = (1 << 4), // 16
+	GPIO_MASK_SIG_OPT = (1 << 5), // 32
+	GPIO_MASK_SIG_RCA = (1 << 6), // 64
+	GPIO_MASK_SIG_BNC = (1 << 8) // 256
+};
 
 // MUX_MODE ALT5 ==> GPIO
 #define GPIO_MUX_MODE_ALT5 (0b0101 | 0b00010000)
