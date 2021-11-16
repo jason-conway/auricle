@@ -33,13 +33,13 @@ enum D3_PLL_Return_Codes
 	Locked
 };
 
-typedef struct d3State_t
+typedef struct d3_t
 {
 	d3Power_t power;
 	d3Input_t input;
-} d3State_t;
+} d3_t;
 
-d3State_t d3state;
+d3_t d3state;
 
 /**
  * @brief Configure GPIO for interfacing with the D3
@@ -155,19 +155,25 @@ _section_flash
 void d3switchInput(void)
 {
 	checkAll();
-	uint8_t currentInput = d3state.input;
-	uint8_t targetInput = (currentInput == ModeOPT) ? ModeUSB : ModeOPT;
+	d3Input_t currentInput = d3state.input;
+	d3Input_t targetInput = (currentInput == ModeOPT) ? ModeUSB : ModeOPT;
 
-	printf("Switching to input: %s\r\n", (currentInput == ModeOPT) ? "USB" : "OPT");
+	printf("Switching to input: %s\n", (currentInput == ModeOPT) ? "USB" : "OPT");
 	do
 	{
+		printf("Input: %d\r", d3state.input);
+		fflush(stdout);
+		d3state.input = ModeNull;
+		msleep(100); 
 		GPIO6_DR_SET = GPIO_MASK_SIG_SEL;
-		msleep(50); 
+		msleep(100); 
 		GPIO6_DR_CLEAR = GPIO_MASK_SIG_SEL;
+		msleep(100); 
 		checkAll();
+		yield();
 	} while (d3state.input != targetInput);
 
-	printf("Done\r\n");
+	printf("\nDone\n");
 }
 
 /**
@@ -202,14 +208,14 @@ void d3currentStatus(void)
 	switch (d3state.input)
 	{
 	case ModeUSB:
-		printf("USB\r\n");
+		printf("USB\n");
 		break;
 	case ModeOPT:
-		printf("Optical\r\n");
-		printf("PLL is %s\r\n", (pllStatus() == Locked) ? "locked" : "not locked");
+		printf("Optical\n");
+		printf("PLL is %s\n", (pllStatus() == Locked) ? "locked" : "not locked");
 		break;
 	default:
-		printf("NULL\r\n");
+		printf("NULL\n");
 		break;
 	}
 }
