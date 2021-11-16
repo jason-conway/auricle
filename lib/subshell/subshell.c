@@ -63,7 +63,7 @@ void initSubshell(void)
 
 void printError(const char *cmdName, const char *cmdError)
 {
-	printf("Subshell Error\r\nCommand Name: %s\r\nError: %s\r\n", cmdName, cmdError);
+	printf("Subshell Error\nCommand Name: %s\nError: %s\n", cmdName, cmdError);
 }
 
 /**
@@ -223,12 +223,12 @@ void run(void)
 
 		case '\n': // Line feed
 			EOL = true;
-			printf("\r\n");
+			printf("\n");
 			goto jmpOut;
 
 		case '\r': // Carriage return or carriage return + line feed combo
 			EOL = true;
-			printf("\r\n");
+			printf("\n");
 
 			if (_available())
 			{
@@ -286,10 +286,10 @@ bool getArg(char **cmdArg)
  */
 void listCmds(void)
 {
-	printf("Available Commands: \r\n");
+	printf("Available Commands: \n");
 	for (size_t i = 2; i < shell.numCmds; i++)
 	{
-		printf("%s\r\n", shell.cmd[i].cmdName);
+		printf("%s\n", shell.cmd[i].cmdName);
 	}
 }
 
@@ -307,18 +307,18 @@ void showHelp(void)
 		{
 			if (strncmp(arg, shell.cmd[i].cmdName, cmdStrLength) == 0)
 			{
-				printf("%s\r\n", shell.cmd[i].cmdHelp);
+				printf("%s\n", shell.cmd[i].cmdHelp);
 				invalidCmd = false;
 				break;
 			}
 		}
 		if (invalidCmd)
 		{
-			printf("Unknown command: %s\r\n", arg);
+			printf("Unknown command: %s\n", arg);
 		}
 	}
 	else
 	{
-		printf("Error: Invalid Syntax\r\n");
+		printf("Error: Invalid Syntax\n");
 	}
 }

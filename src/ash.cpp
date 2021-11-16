@@ -86,7 +86,7 @@ void Ash::toggle(void *)
 					d3switchInput();
 					break;
 				case 2:
-					printf("Audio Passthough %s\r\n", convolvIR.togglePassthrough() ? "Enabled" : "Disabled");
+					printf("Audio Passthough %s\n", convolvIR.togglePassthrough() ? "Enabled" : "Disabled");
 				}
 				invalidCmd = false;
 				break;
@@ -94,7 +94,7 @@ void Ash::toggle(void *)
 		}
 		if (invalidCmd)
 		{
-			printf("Unknown option: %s\r\n", cmdArg);
+			printf("Unknown option: %s\n", cmdArg);
 		}
 	}
 }
@@ -105,13 +105,13 @@ void Ash::setAngle(void *)
 	if (getArg(&cmdArg))
 	{
 		uint16_t angle = (uint16_t)(atoi(cmdArg));
-		printf("Setting angle: %d degrees\r\n", angle);
+		printf("Setting angle: %d degrees\n", angle);
 		convolvIR.convertIR((uint16_t)__builtin_round((float32_t)(angle) / 3.6));
-		printf("Done\r\n");
+		printf("Done\n");
 	}
 	else
 	{
-		printf("Error: incorrect syntax\r\n");
+		printf("Error: incorrect syntax\n");
 	}
 }
 
@@ -127,13 +127,13 @@ void Ash::lscmds(void *)
 
 void Ash::audioMemory(void *)
 {
-	printf("Active memory usage: %u bytes\r\n", AudioStream::memory_used);
-	printf("Maximum memory usage: %u bytes\r\n", AudioStream::memory_used_max);
+	printf("Active memory usage: %u bytes\n", AudioStream::memory_used);
+	printf("Maximum memory usage: %u bytes\n", AudioStream::memory_used_max);
 }
 
 void Ash::audioPassthrough(void *)
 {
-	printf("Audio Passthough %s\r\n", convolvIR.togglePassthrough() ? "Enabled" : "Disabled");
+	printf("Audio Passthough %s\n", convolvIR.togglePassthrough() ? "Enabled" : "Disabled");
 }
 
 void Ash::help(void *)
@@ -145,19 +145,19 @@ void Ash::memoryUse(void *)
 {
 	extern unsigned long _heap_end;
 	extern char *__brkval;
-	printf("Memory free: %8d\r\n", (char *)(&_heap_end) - __brkval);
+	printf("Memory free: %8d\n", (char *)(&_heap_end) - __brkval);
 }
 
 void Ash::reboot(void *)
 {
-	printf("Auricle Rebooting\r\n");
+	printf("Auricle Rebooting\n");
 	*(volatile uint32_t *)0xE000ED0C = 0x05FA0004;
 }
 
 void Ash::unknownCommand(void *)
 {
 	Ash::hostname(nullptr);
-	printf("Unknown command\r\n");
+	printf("Unknown command\n");
 	fflush(stdout);
 }
 
@@ -176,9 +176,8 @@ void Ash::hostname(void *)
 void Ash::motd(void)
 {
 	clear(nullptr);
-	printf("Auricle Shell\r\n");
-	printf("Version 0.1\r\n");
-	printf("Copyright (c) 2021 Jason Conway\r\n\r\n");
-	Serial.print(CrashReport);
+	printf("Auricle Shell\n");
+	printf("Version 0.1\n");
+	printf("Copyright (c) 2021 Jason Conway\n\n");
 	hostname(nullptr);
 }

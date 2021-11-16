@@ -2,7 +2,7 @@
  * @file convolvIR.h
  * @author Jason Conway (jpc@jasonconway.dev)
  * @brief Spatial Audio for Arm Cortex-M7
- * @version 0.1
+ * @version 0.24
  * @date 2021-05-04
  *
  * @copyright Copyright (c) 2021 Jason Conway. All rights reserved.

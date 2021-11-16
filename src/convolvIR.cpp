@@ -25,7 +25,6 @@ ConvolvIR::ConvolvIR(void) : AudioStream(2, inputQueueArray)
 	pinMode(33, 1);
 }
 
-
 void ConvolvIR::convertIR(uint16_t irIndex)
 {
 	audioMute = true;
@@ -34,7 +33,6 @@ void ConvolvIR::convertIR(uint16_t irIndex)
 	digitalWriteFast(33, 0);
 	audioMute = false;
 	audioPassthrough = false;
-
 }
 
 bool ConvolvIR::togglePassthrough(void)
@@ -71,9 +69,9 @@ void ConvolvIR::update(void)
 		{
 			__disable_irq();
 
-			digitalWriteFast(33,1);
+			digitalWriteFast(33, 1);
 			convolve(leftAudio->data, rightAudio->data);
-			digitalWriteFast(33,0);
+			digitalWriteFast(33, 0);
 
 			// Transmit left and right audio to the output
 			transmit(leftAudio, LeftChannel);
@@ -84,7 +82,6 @@ void ConvolvIR::update(void)
 
 			// Re-enable interrupts
 			__enable_irq();
-			
 		}
 	}
 }
