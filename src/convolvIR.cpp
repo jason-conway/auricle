@@ -29,7 +29,7 @@ void ConvolvIR::convertIR(uint16_t irIndex)
 {
 	audioMute = true;
 	digitalWriteFast(33, 1);
-	convertImpulseResponse(irIndex);
+	processFilters(irIndex);
 	digitalWriteFast(33, 0);
 	audioMute = false;
 	audioPassthrough = false;

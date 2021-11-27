@@ -19,6 +19,7 @@
 #include <arm_math.h>
 #include <arm_const_structs.h>
 #include <imxrt.h>
+#include "math512.h"
 
 enum Lengths
 {
@@ -33,17 +34,17 @@ enum FFT_Flags
 	InverseFFT
 };
 
-enum ChannelID
+enum FilterID
 {
-	LeftChannel,
-	RightChannel
+	LeftFilter,
+	RightFilter
 };
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-	void convertImpulseResponse(const uint16_t irIndex);
+	void processFilters(const uint16_t irIndex);
 	void convolve(int16_t *leftAudio, int16_t *rightAudio);
 #ifdef __cplusplus
 }

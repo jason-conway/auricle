@@ -6,25 +6,24 @@
  * @date 2021-05-04
  *
  * @copyright Copyright (c) 2021 Jason Conway. All rights reserved.
- * 
- * @details 
+ *
+ * @details
  * HRIR - Head-Related Impulse Response
  * HRTF - Head-Related Transfer Function
  * The HRTF is the Discrete Fourier Transform of the HRIR
- * The hrtf_t struct holds two HRTFs, one for each ear.
- * 		letf - Left Ear Transfer Function
- * 		retf - Right Ear Transfer Function
- * 	
+ * The filters_t struct holds two filters, one for each ear.
+ *
  */
 
 #include "upols.h"
 #include "./../../include/tablIR.h"
 
-typedef struct hrtf_t
+// Filter impulse responses
+typedef struct filters_t
 {
-	float32_t letf[512 * PartitionCount];
-	float32_t retf[512 * PartitionCount];
-} hrtf_t;
+	float32_t left[512 * PartitionCount];
+	float32_t right[512 * PartitionCount];
+} filters_t;
 
 typedef struct upols_t
 {
@@ -33,71 +32,57 @@ typedef struct upols_t
 	float32_t delayLine[512 * PartitionCount]; // Frequency-domain delay line
 } upols_t;
 
-hrtf_t hrtf;
+filters_t filters;
 
-/**
- * @brief Convert set of left and right channel HRIRs into a set of uniformly partitioned frequency-domain HRTFs
- * 
- * The linearity of the FFT allows previously computed FFTs to be reused in the suceeding filters- decreasing the 
- * number of forward FFTs that need to be computed. Since multiple convolutions are summed together, the overall 
- * number of inverse FFTs is also cut down.
- * 
- * @param irIndex 
- */
-void convertImpulseResponse(const uint16_t irIndex)
+void processFilters(const uint16_t irIndex)
 {
 	// Start by clearing any contents that may be in memory
-	memset(&hrtf, 0, sizeof(hrtf));
+	memset(&filters, 0, sizeof(filters));
 
 	// Loop twice, left channel when i == 0, right channel when i == 1
 	for (size_t i = 0; i < 2; i++)
 	{
-		float32_t impulsePartitionBuffer[512]; // DFT spectra of an indiviual filter partition
-		float32_t *channelTF = i ? hrtf.retf : hrtf.retf;
+		float32_t subfilterSpectra[512]; // DFT spectra of an indiviual filter partition
+		float32_t *filter = i ? filters.right : filters.left;
 
 		for (size_t j = 0; j < PartitionCount; j++)
 		{
 			// Zero out impulsePartitionBuffer at the start of a new partition
-			arm_fill_f32(0.0f, impulsePartitionBuffer, 512);
+			clear512(subfilterSpectra);
 
 			for (size_t k = 0; k < PartitionSize; k++)
 			{
 				// impulsePartitionBuffer[2 * k + 256] = irTable[2 * ImpulseSamples * irIndex + ImpulseSamples * i + 128 * j + k];
 
 				// Zero-padded on the left side
-				impulsePartitionBuffer[2 * k + 256] = irTable[ImpulseSamples * i + 128 * j + k];
+				subfilterSpectra[2 * k + 256] = irTable[ImpulseSamples * i + 128 * j + k];
 			}
 
 			// Compute the DFT of the partition and copy to hrtf
-			arm_cfft_f32(&arm_cfft_sR_f32_len256, impulsePartitionBuffer, ForwardFFT, 1);
-			arm_copy_f32(impulsePartitionBuffer, &channelTF[512 * j], 512);
+			arm_cfft_f32(&arm_cfft_sR_f32_len256, subfilterSpectra, ForwardFFT, 1);
+			cp512(subfilterSpectra, &filter[512 * j]);
 		}
 	}
 }
 
 /**
  * @brief Perform frequency-domain convolution by point-wise multiplication of DFT spectra
- * 
+ *
  * @param channelOutput Pointer to the time-domain output buffer
- * @param channelID ID of the channel being operated on [left -> 0] [right -> 1]
+ * @param filterID ID of the channel being operated on [left -> 0] [right -> 1]
  */
-void _convolve(upols_t *upols, float32_t *channelOutput, const uint8_t channelID)
+void _convolve(upols_t *upols, float32_t *channelOutput, const uint8_t filterID)
 {
 	// Frequency-domain accumulation buffer
-	static float32_t cmplxAccum[512];
-	float32_t cmplxProduct[512];
+	float32_t cmplxAccum[512] = {0};
+	float32_t *filter = filterID ? filters.right : filters.left;
 
-	arm_fill_f32(0.0f, cmplxAccum, 512); // Zero buffer between calls
-
-	int16_t shiftIndex = upols->currentIndex; // Set new starting point for sliding convolutionPartitions over the FFT of the impulse response
-
-	float32_t *channelTF = channelID ? hrtf.retf : hrtf.retf;
-
+	int16_t shiftIndex = upols->currentIndex; // New starting point
+	
 	for (size_t i = 0; i < PartitionCount; i++)
 	{
-		// Point-wise multiplication of the DFT spectra
-		arm_cmplx_mult_cmplx_f32(&upols->delayLine[512 * shiftIndex], &channelTF[512 * i], cmplxProduct, 256);
-		arm_add_f32(cmplxAccum, cmplxProduct, cmplxAccum, 512);
+		// Fast multiply-accumulate for complex numbers
+		cmac512(&upols->delayLine[512 * shiftIndex], &filter[512 * i], cmplxAccum);
 
 		// Decrement with wraparound
 		shiftIndex = (shiftIndex + (PartitionCount - 1)) % PartitionCount;
@@ -105,20 +90,21 @@ void _convolve(upols_t *upols, float32_t *channelOutput, const uint8_t channelID
 
 	arm_cfft_f32(&arm_cfft_sR_f32_len256, cmplxAccum, InverseFFT, 1);
 
-	// Discarding the time-aliased block
+#pragma GCC unroll 8
 	for (size_t i = 0; i < PartitionSize; i++)
 	{
-		channelOutput[i] = cmplxAccum[2 * i + channelID];
+		channelOutput[i] = cmplxAccum[2 * i + filterID]; // Time-aliased portion isn't copied
 	}
 }
 
 /**
  * @brief Overlap and save input audio samples
  * 
- * @param leftAudioData 
- * @param rightAudioData 
+ * @param upols upols_t instance
+ * @param leftAudioData Pointer to left channel audio
+ * @param rightAudioData Pointer to right channel audio
  */
-inline static void overlapSamples(upols_t *upols, const float32_t *leftAudioData, const float32_t *rightAudioData)
+void overlapSamples(upols_t *upols, const float32_t *leftAudioData, const float32_t *rightAudioData)
 {
 	for (size_t i = 0; i < PartitionSize; i++)
 	{
@@ -140,10 +126,10 @@ inline static void overlapSamples(upols_t *upols, const float32_t *leftAudioData
 }
 
 /**
- * @brief Only one FFT/IFFT transform is required per input block.
- * 
- * @param leftAudioData 
- * @param rightAudioData 
+ * @brief 
+ *
+ * @param leftAudioData
+ * @param rightAudioData
  */
 void convolve(int16_t *leftAudio, int16_t *rightAudio)
 {
@@ -159,14 +145,15 @@ void convolve(int16_t *leftAudio, int16_t *rightAudio)
 
 	// Take FFT of time-domain input buffer and copy to the FDL
 	arm_cfft_f32(&arm_cfft_sR_f32_len256, upols.slidingWindow, ForwardFFT, 1);
-	arm_copy_f32(upols.slidingWindow, &upols.delayLine[upols.currentIndex * 512], 512);
+	cp512(upols.slidingWindow, &upols.delayLine[upols.currentIndex * 512]);
 
-	_convolve(&upols, leftAudioData, LeftChannel);
-	_convolve(&upols, rightAudioData, RightChannel);
+	_convolve(&upols, leftAudioData, LeftFilter);
+	_convolve(&upols, rightAudioData, RightFilter);
 
 	// Increment with wraparound
 	upols.currentIndex = (upols.currentIndex + 1) % PartitionCount;
 
+	// Convert back to input type
 	arm_float_to_q15(leftAudioData, leftAudio, 128);
 	arm_float_to_q15(rightAudioData, rightAudio, 128);
 }
