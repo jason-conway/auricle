@@ -14,16 +14,14 @@
 #include "spdifTx.h"
 #include "ash.h"
 
-AudioInputUSB stereoIn;
-SpdifTx stereoOut;
+AudioInputUSB usbAudioIn;
+SpdifTx spdifOut;
 ConvolvIR convolvIR;
 
-// AudioConnection passthoughLeft(stereoIn, leftChannel, stereoOut, leftChannel);
-// AudioConnection passthroughRight(stereoIn, rightChannel, stereoOut, rightChannel);
-AudioConnection leftInConv(stereoIn, leftChannel, convolvIR, leftChannel);
-AudioConnection rightInConv(stereoIn, rightChannel, convolvIR, rightChannel);
-AudioConnection leftOutConv(convolvIR, leftChannel, stereoOut, leftChannel);
-AudioConnection rightOutConv(convolvIR, rightChannel, stereoOut, rightChannel);
+AudioConnection leftInConv(usbAudioIn, leftChannel, convolvIR, leftChannel);
+AudioConnection rightInConv(usbAudioIn, rightChannel, convolvIR, rightChannel);
+AudioConnection leftOutConv(convolvIR, leftChannel, spdifOut, leftChannel);
+AudioConnection rightOutConv(convolvIR, rightChannel, spdifOut, rightChannel);
 
 Ash ash;
 

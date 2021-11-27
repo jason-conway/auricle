@@ -31,6 +31,12 @@ private:
 
 	bool audioPassthrough;
 	bool audioMute;
+
+	enum Channels
+	{
+		LeftChannel,
+		RightChannel
+	};
 };
 
 extern ConvolvIR convolvIR;

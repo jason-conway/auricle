@@ -44,8 +44,6 @@ void Ash::init(void)
 	newCmd("unkCmd", "", unknownCommand);
 	newCmd("help", "Show help for the specified command", help);
 
-	// newCmd("togglepower", "Toggle power on the D3", togglePower);
-	// newCmd("toggle", "Toggle D3 input mode", switchInput);
 	newCmd("toggle", "Toggle the state of the entered setting", toggle);
 
 	newCmd("pttoggle", "Toggle audio passthrough", audioPassthrough);
